@@ -1,0 +1,22 @@
+# Render Blueprint for the game server (HTTP + WebSocket in one Node process).
+# By default this single service also serves the web client, so it is a complete deployment on its own.
+# When the client lives on Netlify or Vercel, set SERVE_CLIENT=off and ALLOWED_ORIGINS to that site's address.
+
+services:
+  - type: web
+    name: ultimate-auction-arena
+    runtime: node
+    plan: free
+    buildCommand: npm ci --include=dev && npm run build
+    startCommand: npm start
+    healthCheckPath: /health
+    envVars:
+      - key: NODE_VERSION
+        value: "22"
+      # The free plan has no persistent disk, so room files would not survive a restart anyway.
+      - key: PERSIST
+        value: "off"
+      # Comma-separated sites allowed to connect, e.g. https://my-arena.netlify.app,https://*.vercel.app
+      # Leave unset while this service serves the client itself.
+      - key: ALLOWED_ORIGINS
+        sync: false

@@ -1,0 +1,15 @@
+node_modules
+dist
+server/data
+.env
+artifacts
+.backup
+playwright-report
+test-results
+dist-server
+
+# local editor / OS files
+.DS_Store
+Thumbs.db
+*.log
+*.tmp

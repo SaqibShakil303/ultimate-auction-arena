@@ -1,0 +1,11 @@
+node_modules
+dist
+dist-server
+artifacts
+.backup
+.claude
+server/data
+test-results
+playwright-report
+.env
+.git
