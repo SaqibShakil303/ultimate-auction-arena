@@ -1,6 +1,9 @@
-# Render Blueprint for the game server (HTTP + WebSocket in one Node process).
-# By default this single service also serves the web client, so it is a complete deployment on its own.
-# When the client lives on Netlify or Vercel, set SERVE_CLIENT=off and ALLOWED_ORIGINS to that site's address.
+# Render Blueprint: one web service that runs the game server (HTTP + WebSocket) AND serves the
+# web client. This is a complete deployment on its own — one URL, nothing else to configure.
+#
+# Hosting the client on Netlify or Vercel instead? Add two environment variables to this service
+# in the Render dashboard afterwards (see docs/DEPLOYMENT.md):
+#   ALLOWED_ORIGINS = https://your-site.netlify.app      SERVE_CLIENT = off
 
 services:
   - type: web
@@ -16,7 +19,3 @@ services:
       # The free plan has no persistent disk, so room files would not survive a restart anyway.
       - key: PERSIST
         value: "off"
-      # Comma-separated sites allowed to connect, e.g. https://my-arena.netlify.app,https://*.vercel.app
-      # Leave unset while this service serves the client itself.
-      - key: ALLOWED_ORIGINS
-        sync: false
