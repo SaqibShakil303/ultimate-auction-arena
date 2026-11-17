@@ -10,11 +10,13 @@ import {
 import { loadCustom, newDraft, poolFor, saveCustom, withMode, type Draft } from './lib/draft';
 import { Btn, cx, Field, inputCls, Logo } from './components/ui';
 import { Lobby, LobbySkeleton } from './screens/Lobby';
+import { Showcase } from './components/Showcase';
+import { CreditsButton } from './components/Credits';
 const Auction = lazy(() => import('./screens/Auction').then((m) => ({ default: m.Auction })));
 const Results = lazy(() => import('./screens/Results').then((m) => ({ default: m.Results })));
 const Setup = lazy(() => import('./screens/Setup').then((m) => ({ default: m.Setup })));
 
-const DRAFT_KEY = 'uaa.draft.v1';
+const DRAFT_KEY = 'uaa.draft.v2'; // v2: Football now starts on official FC 27 ratings
 function loadDraft(): Draft {
   try {
     const d = JSON.parse(localStorage.getItem(DRAFT_KEY) || 'null') as Draft | null;
@@ -118,8 +120,10 @@ function Home({ onNew, onDemo, onJoin, resume, onResume, onDiscard, saved, onRej
             )}
           </div>
         </section>
+
+        <Showcase />
       </main>
-      <footer className="mx-auto mt-5 max-w-5xl text-center text-[11px] leading-relaxed text-muted"><Sparkles size={11} className="mr-1 inline" />Fan-made party game. Prime Legends ratings are clearly labelled custom unless verified; official imports retain source and verification status. Original fallback artwork. Not affiliated with any league, club, publisher, or studio.</footer>
+      <footer className="mx-auto mt-5 max-w-5xl text-center text-[11px] leading-relaxed text-muted"><Sparkles size={11} className="mr-1 inline" />Fan-made party game. Football cards marked FC 27 use official EA SPORTS FC 27 base ratings; legends and heroes use this game’s own clearly labelled custom values. Player photos are freely licensed from Wikimedia Commons; hero art is original. Not affiliated with any league, club, publisher or studio. <CreditsButton /></footer>
     </div>
   );
 }

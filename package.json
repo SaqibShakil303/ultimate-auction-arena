@@ -3,7 +3,7 @@
   "private": true,
   "version": "1.0.0",
   "type": "module",
-  "description": "Real-time multiplayer Football & Heroes auction game",
+  "description": "Real-time multiplayer Football & Heroes auction game with official EA SPORTS FC 27 ratings",
   "scripts": {
     "dev": "concurrently -k -n server,web -c magenta,cyan \"npm:dev:server\" \"npm:dev:web\"",
     "dev:web": "vite",
@@ -17,7 +17,9 @@
     "build:web": "tsc --noEmit && vite build",
     "build:server": "esbuild server/index.ts --bundle --platform=node --format=esm --target=node20 --outfile=dist-server/index.mjs --external:bufferutil --external:utf-8-validate --log-level=warning --banner:js=\"import{createRequire as __cr}from'node:module';const require=__cr(import.meta.url);\"",
     "start:ts": "tsx server/index.ts --prod",
-    "test:all": "npm run typecheck && npm test && npm run build && npm run test:browser"
+    "test:all": "npm run typecheck && npm test && npm run build && npm run test:browser",
+    "data:fc27": "node scripts/fetch-fc27.mjs",
+    "data:portraits": "tsx scripts/fetch-portraits.ts"
   },
   "dependencies": {
     "class-variance-authority": "^0.7.1",

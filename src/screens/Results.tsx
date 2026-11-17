@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Award as AwardIcon, Download, Repeat, RotateCcw, Share2, Shuffle, Swords, Trophy } from 'lucide-react';
+import { Award as AwardIcon, Download, Repeat, RotateCcw, Share2, Shuffle, Swords, Trophy, Crown } from 'lucide-react';
 import type { Card, Participant } from '../../shared/types';
 import { autoLineup, teamConfig } from '../../shared/engine';
 import { BATTLE_RULES, computeAwards, rankTeams, simulateBattle, type Award, type Ranked } from '../../shared/scoring';
@@ -191,25 +191,27 @@ export function Results({ snap, ctl, onHome, onRematch, onSwitch }: { snap: Snap
       </header>
 
       {/* ───── championship reveal ───── */}
-      <section className="glass overflow-hidden p-5 text-center sm:p-8">
-        <div className="font-display text-sm font-bold uppercase tracking-[0.3em] text-muted">{done ? title : 'Final scores incoming'}</div>
+      <section className="glass spotlight overflow-hidden p-5 text-center sm:p-8">
+        <div className="kicker">{done ? title : 'Final scores incoming'}</div>
         {done ? (
           <div className="rise">
-            <Trophy size={64} className="float mx-auto mt-3 text-gold drop-shadow-[0_0_30px_#f6c453]" />
-            <h1 className="mt-2 font-display text-5xl font-bold uppercase gold-text sm:text-7xl">{champs.map((c) => c.p.name).join(' & ')}</h1>
+            <div className="relative mx-auto mt-3 grid h-28 w-28 place-items-center rounded-full bg-[radial-gradient(circle,rgba(255,210,87,.45),transparent_68%)]">
+              <Trophy size={72} className="float text-gold drop-shadow-[0_0_30px_#ffd257]" />
+            </div>
+            <h1 className="mt-1 font-display text-5xl font-bold uppercase gold-text drop-shadow-[0_0_34px_rgba(255,210,87,.5)] sm:text-8xl">{champs.map((c) => c.p.name).join(' & ')}</h1>
             <p className="mt-1 text-slate-300">{champs.length > 1 ? 'Shared victory — identical on every tie-breaker' : `${champs[0].p.team} · ${champs[0].score.total.toFixed(1)} points`}</p>
           </div>
         ) : (
-          <h1 className="mt-4 font-display text-4xl font-bold uppercase sm:text-5xl">The auction is over</h1>
+          <h1 className="mt-4 font-display text-4xl font-bold uppercase grad-text sm:text-6xl">The auction is over</h1>
         )}
 
         <div className="mx-auto mt-6 max-w-2xl space-y-2 text-left">
           {ranking.map((r, i) => {
             const shown = ranking.length - i <= revealed;
             return (
-              <div key={r.p.id} className={cx('flex items-center gap-3 rounded-xl border px-3 py-2 transition', shown && r.rank === 1 ? 'border-gold bg-gold/10' : 'border-line bg-white/[0.03]')}>
-                <span className={cx('w-9 font-display text-2xl font-bold tnum', shown && r.rank === 1 ? 'text-gold' : 'text-slate-400')}>{shown ? `#${r.rank}` : '?'}</span>
-                <span className="h-8 w-1.5 rounded-full" style={{ background: colorOf(r.p.id) }} />
+              <div key={r.p.id} className={cx('rank-row', shown && 'rise', shown && r.rank === 1 && 'champ')} style={{ '--team': colorOf(r.p.id) } as React.CSSProperties}>
+                <span className={cx('grid h-10 w-10 flex-none place-items-center rounded-xl font-display text-xl font-bold tnum', shown && r.rank === 1 ? 'bg-gradient-to-b from-[#fff3bf] to-[#f59e0b] text-[#2a1900]' : 'bg-black/30 text-slate-300')}>{shown ? r.rank : '?'}</span>
+                <span className="avatar h-9 w-9 text-base" style={{ background: `radial-gradient(circle at 35% 30%, #fff 0%, ${colorOf(r.p.id)} 42%, color-mix(in srgb, ${colorOf(r.p.id)} 70%, #000) 100%)` }}>{r.p.name.slice(0, 1).toUpperCase()}</span>
                 <div className="min-w-0 flex-1">
                   <div className="flex items-baseline justify-between gap-2">
                     <span className="truncate font-semibold">{r.p.name} <span className="text-xs font-normal text-muted">{r.p.team}</span></span>
@@ -221,7 +223,7 @@ export function Results({ snap, ctl, onHome, onRematch, onSwitch }: { snap: Snap
             );
           })}
         </div>
-        {!done && <button className="mt-4 text-xs font-semibold text-accent" onClick={() => setRevealed(ranking.length)}>Skip the reveal →</button>}
+        {!done && <button className="btn btn-ghost mt-4 h-9 px-4 text-xs" onClick={() => setRevealed(ranking.length)}>Skip the reveal →</button>}
 
         {done && (
           <div className="mx-auto mt-8 grid max-w-2xl grid-cols-3 items-end gap-2 sm:gap-4">
@@ -230,10 +232,11 @@ export function Results({ snap, ctl, onHome, onRematch, onSwitch }: { snap: Snap
               const h = place === 1 ? 'h-36 sm:h-44' : place === 2 ? 'h-24 sm:h-32' : 'h-16 sm:h-24';
               return (
                 <div key={r.p.id} className="rise text-center">
-                  <div className="truncate font-display text-lg font-bold uppercase sm:text-xl" style={{ color: colorOf(r.p.id) }}>{r.p.name}</div>
-                  <div className="text-xs text-muted tnum">{r.score.total.toFixed(1)} pts</div>
-                  <div className={cx('mt-2 grid place-items-center rounded-t-2xl border border-b-0', h, place === 1 ? 'border-gold bg-gradient-to-b from-gold/40 to-gold/5' : 'border-line bg-gradient-to-b from-white/15 to-white/0')}>
-                    <div><div className="font-display text-4xl font-bold">{place}</div><div className="text-[10px] uppercase tracking-widest text-slate-300">{ordinal(place)}</div></div>
+                  {place === 1 && <Crown size={26} className="float mx-auto mb-1 text-gold drop-shadow-[0_0_12px_#ffd257]" />}
+                  <div className="truncate font-display text-lg font-bold uppercase sm:text-2xl" style={{ color: colorOf(r.p.id), textShadow: `0 0 18px ${colorOf(r.p.id)}` }}>{r.p.name}</div>
+                  <div className="text-xs text-slate-300 tnum">{r.score.total.toFixed(1)} pts</div>
+                  <div className={cx('pillar mt-2', h, place === 1 && 'first')} style={{ '--team': colorOf(r.p.id) } as React.CSSProperties}>
+                    <div><div className="font-display text-5xl font-bold">{place}</div><div className={cx('text-[10px] font-bold uppercase tracking-widest', place === 1 ? 'text-[#2a1900]/80' : 'text-slate-200')}>{ordinal(place)}</div></div>
                   </div>
                 </div>
               );
@@ -255,11 +258,11 @@ export function Results({ snap, ctl, onHome, onRematch, onSwitch }: { snap: Snap
           {/* ───── awards ───── */}
           {awards.length > 0 && (
             <section>
-              <h2 className="mb-3 font-display text-2xl font-bold uppercase">Auction awards</h2>
+              <h2 className="mb-3 font-display text-3xl font-bold uppercase"><span className="gold-text">Auction awards</span></h2>
               <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
                 {awards.map((a) => (
-                  <div key={a.id} className="panel p-4">
-                    <AwardIcon size={20} className="text-gold" />
+                  <div key={a.id} className="award rise">
+                    <span className="grid h-10 w-10 place-items-center rounded-xl bg-gradient-to-b from-[#fff3bf] to-[#f59e0b] text-[#2a1900] shadow-[0_8px_20px_-8px_#ffd257]"><AwardIcon size={20} /></span>
                     <div className="mt-2 font-display text-sm font-bold uppercase tracking-wider text-gold">{a.title}</div>
                     <div className="font-display text-xl font-bold">{a.winner}</div>
                     <div className="text-xs text-muted">{a.detail}</div>

@@ -7,6 +7,7 @@ import { FOOTBALLERS, LINE_NAME, LINE_OF } from './data/football';
 import { rankTeams } from './scoring';
 import type { Card, FootballCard, MatchConfig, MatchState, Participant, Sale } from './types';
 import { rarityOf, slug } from './util';
+import { withPortrait } from './catalog';
 
 const STARTING_BUDGET = 1_000_000;
 
@@ -65,7 +66,7 @@ const FRIEND_ROSTERS: readonly FriendRoster[] = [
  * Nine supplied legends were not present in the original local catalogue. They are
  * deliberately labelled as custom Prime Legends, not as EA FC 26/27 official data.
  */
-const EXTRA_PRIME_LEGENDS: FootballCard[] = [
+export const EXTRA_PRIME_LEGENDS: FootballCard[] = [
   primeLegend('Ronald Koeman', 'CB', 'CDM', 'Netherlands', 'Barcelona', 89, [75, 88, 91, 80, 88, 84], 'Sweeper Cannon'),
   primeLegend('Roy Keane', 'CDM', 'CM', 'Ireland', 'Manchester United', 88, [70, 72, 82, 78, 90, 92], 'Midfield Enforcer'),
   primeLegend('Lilian Thuram', 'RB', 'CB', 'France', 'Parma', 89, [88, 55, 75, 76, 91, 91], 'Lockdown Full-Back'),
@@ -148,7 +149,7 @@ function validateDemo(state: MatchState): void {
 
 /** Build the completed “LEGENDS AUCTION — FRIENDS CHAMPIONSHIP” local demo. */
 export function createFriendsChampionship(now = Date.now()): MatchState {
-  const allCards: FootballCard[] = [...FOOTBALLERS, ...EXTRA_PRIME_LEGENDS].map((c) => ({
+  const allCards: FootballCard[] = [...FOOTBALLERS, ...EXTRA_PRIME_LEGENDS].map((c) => withPortrait({
     ...c, ratingMode: 'prime', edition: 'Prime Legends', cardType: 'custom',
     source: null, verifiedAt: null, verificationStatus: 'custom', playStyles: [],
   }));

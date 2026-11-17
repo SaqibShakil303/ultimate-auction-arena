@@ -183,7 +183,8 @@ function playMatch(seed: number, players: number, over: Partial<MatchConfig>) {
   return { final, stats, bots };
 }
 
-describe('online multiplayer soak', () => {
+// Whole matches with up to eight bots take several seconds each; give them room on slow or busy machines.
+describe('online multiplayer soak', { timeout: 60_000 }, () => {
   const scenarios: [string, number, Partial<MatchConfig>][] = [
     ['2 players · football · strict', 2, { mode: 'football', rules: 'strict' }],
     ['4 players · football · casual', 4, { mode: 'football', rules: 'casual' }],

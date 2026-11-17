@@ -27,7 +27,13 @@ describe('official rating import integrity', () => {
     expect(incomplete.verificationStatus).toBe('unverified');
     expect(normalizeCard(incomplete, 'football')).toEqual(incomplete);
     const cfg = { ...defaultConfig('football'), ratingMode: 'fc27' as const };
-    expect(buildPool([...getCatalog('football'), a, b, incomplete], cfg)).toEqual([a]);
+    // Imported cards: only the complete, verified FC 27 one joins the official pool.
+    const pool = buildPool([...getCatalog('football'), a, b, incomplete], cfg);
+    expect(pool.filter((c) => c.pack === 'custom')).toEqual([a]);
+    // FC 26 has no bundled data, so its pool is exactly the verified import plus optional legend guests.
+    expect(buildPool(getCatalog('football'), { ...cfg, ratingMode: 'fc26' as const })).toEqual([]); // no official data → no pool, even with legends on
+    const fc26 = { ...cfg, ratingMode: 'fc26' as const, packs: ['modern'] };
+    expect(buildPool([...getCatalog('football'), a, b, incomplete], fc26)).toEqual([b]);
     const edited = applyCustom([a], { edits: { [a.id]: { overall: 99, stats: a.stats } }, imported: [] }, 'football');
     expect(buildPool(edited, cfg)).toEqual([]);
   });

@@ -3,6 +3,8 @@ import { ArrowLeft, ArrowRight, BadgeCheck, Download, FileSpreadsheet, Globe, Mi
 import type { Card, Custom, FormationName, Line, MatchConfig, Mode, RatingMode } from '../../shared/types';
 import { HERO_CLASSES, LINES } from '../../shared/types';
 import { basePrice, CLUE_STEP_MS, FORMATIONS, GUESS_BONUS, GUESS_CAP, incrementOptions, minPrice, quickSteps, slotsForFormation, validateSetup } from '../../shared/engine';
+import { buildPool } from '../../shared/engine';
+import { FC27_RETRIEVED } from '../../shared/data/fc27';
 import { normalizeCard, PACKS } from '../../shared/catalog';
 import { parseCardCsv } from '../../shared/cardImport';
 import { AVENGERS_WEIGHTS, BATTLE_RULES, FOOTBALL_WEIGHTS, SYNERGY_CAP } from '../../shared/scoring';
@@ -199,6 +201,7 @@ export function Setup({ initial, initialCustom, roomMode, onCancel, onSubmit }: 
     return acc;
   }, { fc26: 0, fc27: 0, prime: 0 }) : null;
   const verifiedCount = pool.filter((c) => c.kind === 'football' && c.verificationStatus === 'verified').length;
+  const legendGuests = cfg.mode === 'football' && cfg.ratingMode !== 'prime' ? pool.filter((c) => c.kind === 'football' && c.verificationStatus !== 'verified').length : 0;
 
   return (
     <div className="mx-auto flex min-h-screen w-full max-w-4xl flex-col px-4 py-6 sm:py-10" data-mode={cfg.mode}>
@@ -213,32 +216,32 @@ export function Setup({ initial, initialCustom, roomMode, onCancel, onSubmit }: 
           <li key={s} className="flex flex-1 items-center gap-1.5 sm:gap-2">
             <button
               onClick={() => i < step && setStep(i)} disabled={i > step} aria-current={i === step ? 'step' : undefined}
-              className={cx('flex items-center gap-2 rounded-full border px-2.5 py-1.5 text-xs font-bold sm:px-3.5', i === step ? 'border-accent bg-accent/20 text-white' : i < step ? 'border-emerald-500/40 bg-emerald-500/10 text-emerald-200' : 'border-line text-muted')}
+              className={cx('step-pill', i === step && 'now', i < step && 'done')}
             >
-              <span className="grid h-5 w-5 place-items-center rounded-full bg-black/40 tnum">{i + 1}</span>
+              <span className="tnum">{i < step ? '✓' : i + 1}</span>
               <span className="hidden sm:inline">{s}</span>
             </button>
-            {i < steps.length - 1 && <span className={cx('h-px flex-1', i < step ? 'bg-emerald-500/50' : 'bg-line')} />}
+            {i < steps.length - 1 && <span className={cx('h-1 flex-1 rounded-full', i < step ? 'bg-gradient-to-r from-emerald-400 to-emerald-300 shadow-[0_0_10px_-2px_#4ade80]' : 'bg-white/10')} />}
           </li>
         ))}
       </ol>
 
-      <main className="glass flex-1 space-y-7 p-5 sm:p-8">
+      <main className="glass screen-in flex-1 space-y-7 p-5 sm:p-8">
         {cur === 'Mode' && (
           <>
-            <h1 className="font-display text-3xl font-bold">Choose your arena</h1>
+            <h1 className="font-display text-4xl font-bold uppercase"><span className="grad-text">Choose your arena</span></h1>
             <div className="grid gap-4 sm:grid-cols-2">
               {([
-                ['football', 'Football Auction', 'Draft an 11-player XI. Win on quality, positional suitability, tactical balance, role coverage and chemistry.', <Trophy key="i" size={26} />, '#2e90ff'],
-                ['avengers', 'Heroes Auction', 'Recruit 5 heroes. Win on power, synergy, role diversity and counter coverage.', <Zap key="i" size={26} />, '#a855f7'],
-              ] as const).map(([mode, title, text, icon, color]) => (
+                ['football', 'Football Auction', 'Draft an 11-player XI. Win on quality, positional suitability, tactical balance, role coverage and chemistry.', <Trophy key="i" size={26} />, '#2fe6a0', '/assets/arena-football.jpg', 'linear-gradient(135deg,#d6ff4a,#2fe6a0,#22c7f0)'],
+                ['avengers', 'Heroes Auction', 'Recruit 5 heroes. Win on power, synergy, role diversity and counter coverage.', <Zap key="i" size={26} />, '#c77dff', '/assets/arena-heroes.jpg', 'linear-gradient(135deg,#ff4e9a,#b25cff,#5b7bff)'],
+              ] as const).map(([mode, title, text, icon, color, img, grad]) => (
                 <button
                   key={mode} onClick={() => setD((x) => withMode(x, mode))} aria-pressed={cfg.mode === mode}
-                  className={cx('relative overflow-hidden rounded-2xl border p-5 text-left transition', cfg.mode === mode ? 'border-transparent glow-accent' : 'border-line hover:border-white/30')}
-                  style={{ background: `radial-gradient(120% 90% at 0% 0%, ${color}40, transparent 60%), #0b1124` }}
+                  className={cx('mode-tile flex flex-col justify-end', cfg.mode === mode && 'on')}
+                  style={{ '--tile-bg': `url(${img})`, '--tile-accent': color } as React.CSSProperties}
                 >
-                  <span className="mb-3 grid h-12 w-12 place-items-center rounded-xl text-white" style={{ background: color }}>{icon}</span>
-                  <span className="block font-display text-2xl font-bold">{title}</span>
+                  <span className="mb-3 grid h-12 w-12 place-items-center rounded-2xl text-[#06101f] shadow-[0_10px_24px_-10px_currentColor]" style={{ background: grad, color }}><span className="text-[#06101f]">{icon}</span></span>
+                  <span className="block font-display text-3xl font-bold uppercase leading-none drop-shadow-[0_2px_10px_#000]">{title}</span>
                   <span className="mt-1 block text-sm text-slate-300">{text}</span>
                 </button>
               ))}
@@ -251,7 +254,7 @@ export function Setup({ initial, initialCustom, roomMode, onCancel, onSubmit }: 
                     ['online', 'Online Multiplayer', 'Friends join from their own phones with an invite code.', <Globe key="i" size={20} />],
                   ] as const).map(([play, title, text, icon]) => (
                     <button key={play} onClick={() => set({ play })} aria-pressed={cfg.play === play}
-                      className={cx('flex items-start gap-3 rounded-xl border p-4 text-left transition', cfg.play === play ? 'border-accent bg-accent/15' : 'border-line bg-white/[0.03] hover:bg-white/[0.06]')}>
+                      className={cx('seg flex items-start gap-3 rounded-2xl p-4 text-left', cfg.play === play && 'seg-on')}>
                       <span className="mt-0.5 text-accent">{icon}</span>
                       <span><span className="block font-semibold">{title}</span><span className="block text-xs text-muted">{text}</span></span>
                     </button>
@@ -264,7 +267,7 @@ export function Setup({ initial, initialCustom, roomMode, onCancel, onSubmit }: 
 
         {cur === 'Players' && (
           <>
-            <h1 className="font-display text-3xl font-bold">{online ? 'Your host profile' : 'Who is bidding?'}</h1>
+            <h1 className="font-display text-4xl font-bold uppercase"><span className="grad-text">{online ? 'Your host profile' : 'Who is bidding?'}</span></h1>
             {online ? (
               <div className="grid gap-3 sm:grid-cols-2">
                 <Field label="Your display name"><input className={inputCls} maxLength={20} autoFocus value={d.names[0]} onChange={(e) => setD((p) => ({ ...p, names: p.names.map((x, i) => (i === 0 ? e.target.value : x)) }))} placeholder="e.g. Saqib" /></Field>
@@ -293,7 +296,7 @@ export function Setup({ initial, initialCustom, roomMode, onCancel, onSubmit }: 
 
         {cur === 'Rules' && (
           <>
-            <h1 className="font-display text-3xl font-bold">Match rules</h1>
+            <h1 className="font-display text-4xl font-bold uppercase"><span className="grad-text">Match rules</span></h1>
             <Field label="Starting budget" hint="identical for every participant">
               <div className="flex flex-wrap items-center gap-2">
                 <Seg value={customBudget ? -1 : cfg.budget} onChange={(v) => { if (v > 0) { setCustomBudget(''); set(withBudget(cfg, v)); } }} options={BUDGETS.map((b) => ({ value: b, label: compactINR(b).replace('L', ' lakh') }))} />
@@ -354,36 +357,39 @@ export function Setup({ initial, initialCustom, roomMode, onCancel, onSubmit }: 
 
         {cur === 'Cards' && (
           <>
-            <h1 className="font-display text-3xl font-bold">Card pool</h1>
+            <h1 className="font-display text-4xl font-bold uppercase"><span className="grad-text">Card pool</span></h1>
             {cfg.mode === 'football' && ratingCounts && (
               <Field label="Rating database" hint="chosen before the auction and never mixed silently">
                 <Seg value={cfg.ratingMode} onChange={(ratingMode) => set({ ratingMode, excluded: [] })} options={[
-                  { value: 'fc26', label: `FC 26 Official (${ratingCounts.fc26})` },
                   { value: 'fc27', label: `FC 27 Official (${ratingCounts.fc27})` },
+                  { value: 'fc26', label: `FC 26 Official (${ratingCounts.fc26})` },
                   { value: 'prime', label: `Prime Legends / Custom (${ratingCounts.prime})` },
                 ]} />
                 <div className={cx('mt-3 rounded-xl border p-3 text-xs', cfg.ratingMode === 'prime' ? 'border-gold/25 bg-gold/5 text-slate-300' : verifiedCount ? 'border-emerald-500/30 bg-emerald-500/10 text-emerald-100' : 'border-amber-500/30 bg-amber-500/10 text-amber-100')}>
                   {cfg.ratingMode === 'prime' ? (
                     <>Built-in values are explicitly custom game-balance ratings, never presented as official EA data. Imported verified Icon/Hero items may also carry their specific source.</>
                   ) : verifiedCount ? (
-                    <><BadgeCheck size={13} className="mr-1 inline" />{verifiedCount} host-verified {cfg.ratingMode === 'fc27' ? 'FC 27' : 'FC 26'} card{verifiedCount === 1 ? '' : 's'} ready. The app checks completeness and source metadata; the host is responsible for checking the source values.</>
+                    <><BadgeCheck size={13} className="mr-1 inline" />{verifiedCount} official {cfg.ratingMode === 'fc27' ? 'FC 27' : 'FC 26'} card{verifiedCount === 1 ? '' : 's'} ready{cfg.ratingMode === 'fc27' ? <> — base ratings read from EA’s public ratings page on {FC27_RETRIEVED}; every card links to its EA page</> : null}.{legendGuests > 0 && <> Plus <b>{legendGuests} legends with custom ratings</b>: EA publishes no Icon ratings, so legends are this game’s own values and are labelled “Custom” on every card. Turn the Legends pack off for an official-only auction.</>}</>
                   ) : (
-                    <>No verified {cfg.ratingMode === 'fc27' ? 'FC 27' : 'FC 26'} dataset is installed. Use <b>Manage, edit & import cards</b> for a provenance-bearing CSV/JSON file. The app deliberately does not scrape EA or invent official ratings.</>
+                    <>No verified {cfg.ratingMode === 'fc27' ? 'FC 27' : 'FC 26'} dataset is installed. Use <b>Manage, edit & import cards</b> for a provenance-bearing CSV/JSON file. The app never invents official ratings.</>
                   )}
                 </div>
-                <p className="mt-2 text-[11px] text-muted">Primary reference: <a className="text-accent underline" href="https://www.ea.com/games/ea-sports-fc/ratings" target="_blank" rel="noreferrer">EA SPORTS FC Ratings</a>. FC 27’s live database covers launch base items; FC 26 requires a preserved, sourced import.</p>
+                <p className="mt-2 text-[11px] text-muted">Primary reference: <a className="text-accent underline" href="https://www.ea.com/games/ea-sports-fc/ratings" target="_blank" rel="noreferrer">EA SPORTS FC Ratings</a>. It lists standard player items only — not Icons or Heroes. FC 26 requires a preserved, sourced import.</p>
               </Field>
             )}
             <Field label="Card packs">
               <div className="grid gap-3 sm:grid-cols-3">
                 {PACKS[cfg.mode].map((pk) => {
                   const on = cfg.packs.includes(pk.id);
-                  const n = fullCatalog.filter((c) => c.pack === pk.id && (c.kind !== 'football' || (c.ratingMode ?? 'prime') === cfg.ratingMode)).length;
+                  // Counted alongside every pack so the "official match needs official cards" rule cannot hide guests.
+                  const n = buildPool(fullCatalog, { ...cfg, packs: PACKS[cfg.mode].map((x) => x.id), excluded: [] }).filter((c) => c.pack === pk.id).length;
+                  const official = cfg.mode === 'football' && cfg.ratingMode !== 'prime';
+                  const note = !official ? pk.note : pk.id === 'modern' ? `Official ${cfg.ratingMode === 'fc27' ? 'FC 27' : 'FC 26'} ratings` : 'Custom ratings — not EA data';
                   return (
                     <button key={pk.id} aria-pressed={on} onClick={() => set({ packs: on ? cfg.packs.filter((x) => x !== pk.id) : [...cfg.packs, pk.id] })}
                       className={cx('rounded-xl border p-3 text-left transition', on ? 'border-accent bg-accent/15' : 'border-line bg-white/[0.03] opacity-70 hover:opacity-100')}>
                       <span className="flex items-center justify-between font-semibold">{pk.label}<span className="text-xs text-muted tnum">{n}</span></span>
-                      <span className="block text-xs text-muted">{pk.note}</span>
+                      <span className="block text-xs text-muted">{note}</span>
                     </button>
                   );
                 })}
@@ -414,11 +420,11 @@ export function Setup({ initial, initialCustom, roomMode, onCancel, onSubmit }: 
 
         {cur === 'Review' && (
           <>
-            <h1 className="font-display text-3xl font-bold">Final summary</h1>
+            <h1 className="font-display text-4xl font-bold uppercase"><span className="grad-text">Final summary</span></h1>
             <dl className="grid gap-x-8 gap-y-2 text-sm sm:grid-cols-2">
               {([
                 ['Mode', cfg.mode === 'football' ? 'Football Auction' : 'Heroes Auction'],
-                ...(cfg.mode === 'football' ? [['Ratings', cfg.ratingMode === 'fc27' ? `FC 27 Official · ${verifiedCount} verified cards` : cfg.ratingMode === 'fc26' ? `FC 26 Official · ${verifiedCount} verified cards` : 'Prime Legends / Custom']] as [string, string][] : []),
+                ...(cfg.mode === 'football' ? [['Ratings', cfg.ratingMode === 'prime' ? 'Prime Legends / Custom' : `${cfg.ratingMode === 'fc27' ? 'FC 27' : 'FC 26'} Official · ${verifiedCount} verified cards${legendGuests ? ` + ${legendGuests} custom-rated legends` : ''}`]] as [string, string][] : []),
                 ['Play', roomMode || online ? 'Online multiplayer room' : 'Local pass-and-play'],
                 ...(roomMode ? [] : [['Participants', online ? `${d.names[0] || '—'} (host) + invited friends` : d.names.slice(0, d.count).map((n, i) => (d.teams[i] ? `${n} (${d.teams[i]})` : n)).join(', ')] as [string, string]]),
                 ['Starting budget', `${formatINR(cfg.budget)} each`],
