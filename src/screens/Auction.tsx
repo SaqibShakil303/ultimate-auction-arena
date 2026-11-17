@@ -49,13 +49,17 @@ function Countdown({ deadline, total, offset, paused, pausedAt, tickSound, size 
   const frac = Math.min(1, left / total);
   const hot = secs <= 5;
   return (
-    <div className="relative grid flex-none place-items-center" style={{ width: size, height: size }} role="timer" aria-label={`${secs} seconds left`}>
+    <div className={cx('relative grid flex-none place-items-center rounded-full', hot && !paused && 'hot')} style={{ width: size, height: size, background: 'radial-gradient(circle, rgba(8,12,34,.92) 55%, transparent 56%)' }} role="timer" aria-label={`${secs} seconds left`}>
       <svg viewBox="0 0 100 100" className="absolute inset-0 -rotate-90">
-        <circle cx="50" cy="50" r={r} fill="none" stroke="rgba(255,255,255,0.08)" strokeWidth="6" />
-        <circle cx="50" cy="50" r={r} fill="none" stroke={hot ? '#fb7185' : 'var(--accent)'} strokeWidth="6" strokeLinecap="round" strokeDasharray={c} strokeDashoffset={c * (1 - frac)} style={{ filter: `drop-shadow(0 0 6px ${hot ? '#fb7185' : 'var(--accent)'})` }} />
+        <defs>
+          <linearGradient id="cd-grad" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stopColor="var(--accent3)" /><stop offset="0.5" stopColor="var(--accent)" /><stop offset="1" stopColor="var(--accent2)" /></linearGradient>
+        </defs>
+        <circle cx="50" cy="50" r={r} fill="none" stroke="rgba(255,255,255,0.09)" strokeWidth="7" />
+        <circle cx="50" cy="50" r={r - 6.5} fill="none" stroke="rgba(255,255,255,0.12)" strokeWidth="1" strokeDasharray="1.2 4.2" />
+        <circle cx="50" cy="50" r={r} fill="none" stroke={hot ? '#fb7185' : 'url(#cd-grad)'} strokeWidth="7" strokeLinecap="round" strokeDasharray={c} strokeDashoffset={c * (1 - frac)} style={{ filter: `drop-shadow(0 0 5px ${hot ? '#fb7185' : 'var(--accent)'})`, transition: 'stroke-dashoffset 120ms linear' }} />
       </svg>
       <div className="text-center leading-none">
-        <div className={cx('font-display font-bold tnum', hot ? 'text-rose-300' : 'text-white')} style={{ fontSize: size * 0.36 }}>{paused ? '❚❚' : secs}</div>
+        <div className={cx('font-display font-bold tnum', hot ? 'text-rose-200' : 'text-white')} style={{ fontSize: size * 0.36, textShadow: hot ? '0 0 18px #fb7185' : '0 0 14px var(--glow)' }}>{paused ? '❚❚' : secs}</div>
         {size >= 80 && <div className="mt-1 text-[10px] uppercase tracking-widest text-muted">{paused ? 'paused' : 'seconds'}</div>}
       </div>
     </div>
@@ -64,7 +68,7 @@ function Countdown({ deadline, total, offset, paused, pausedAt, tickSound, size 
 
 function Avatar({ name, color, size = 34 }: { name: string; color: string; size?: number }) {
   return (
-    <span className="grid flex-none place-items-center rounded-full font-display font-bold text-[#06101f]" style={{ width: size, height: size, background: color, fontSize: size * 0.46 }}>
+    <span className="avatar" style={{ width: size, height: size, background: `radial-gradient(circle at 35% 30%, #fff 0%, ${color} 42%, color-mix(in srgb, ${color} 70%, #000) 100%)`, fontSize: size * 0.46 }}>
       {name.slice(0, 1).toUpperCase()}
     </span>
   );
@@ -101,7 +105,7 @@ function Stage({ x, onOpen }: { x: Ctx; onOpen: (id: string) => void }) {
       <AnimatePresence>
         {sale && (
           <motion.div key={sale.round} className="pointer-events-none absolute inset-0 z-10 grid place-items-center" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
-            <div className={cx('stamp rounded-2xl border-4 px-6 py-2 font-display text-5xl font-bold uppercase tracking-widest backdrop-blur-sm sm:text-6xl', sale.type === 'sold' ? 'border-gold bg-black/55 text-gold shadow-[0_0_60px_-8px_#f6c453]' : 'border-slate-400 bg-black/60 text-slate-300')}>
+            <div className={cx('stamp rounded-3xl border-4 px-7 py-2 font-display text-5xl font-bold uppercase tracking-widest backdrop-blur-sm sm:text-6xl', sale.type === 'sold' ? 'border-gold bg-black/55 shadow-[0_0_60px_-6px_rgba(255,210,87,.9)] text-gold shadow-[0_0_60px_-8px_#f6c453]' : 'border-slate-400 bg-black/60 text-slate-300')}>
               {sale.type === 'sold' ? 'Sold!' : 'Unsold'}
             </div>
           </motion.div>
@@ -151,15 +155,15 @@ function MysteryPanel({ x }: { x: Ctx }) {
       <div className="flex items-center justify-between gap-4">
         <div>
           <div className="flex items-center gap-2 font-display text-sm font-bold uppercase tracking-widest text-accent"><HelpCircle size={16} /> Mystery card</div>
-          <h2 className="font-display text-3xl font-bold">Who is it?</h2>
+          <h2 className="font-display text-4xl font-bold uppercase grad-text">Who is it?</h2>
           <p className="text-xs text-muted">A correct guess earns +{GUESS_BONUS} championship points. The card must still be won by bidding.</p>
         </div>
         <Countdown deadline={lot.clueEndsAt} total={CLUE_STAGES * CLUE_STEP_MS} offset={snap.offset} paused={m.paused} pausedAt={m.pausedAt} size={96} />
       </div>
       <ol className="space-y-2">
         {Array.from({ length: CLUE_STAGES }, (_, i) => (
-          <li key={i} className={cx('flex items-start gap-3 rounded-xl border px-4 py-3', lot.clues[i] ? 'rise border-accent/50 bg-accent/10' : 'border-line bg-white/[0.02] text-muted')}>
-            <span className="grid h-6 w-6 flex-none place-items-center rounded-full bg-black/40 text-xs font-bold">{i + 1}</span>
+          <li key={i} className={cx('flex items-start gap-3 rounded-2xl border-[1.5px] px-4 py-3', lot.clues[i] ? 'rise border-accent/60 bg-gradient-to-r from-accent/20 to-accent2/10 shadow-[0_10px_30px_-18px_var(--glow)]' : 'border-dashed border-white/15 bg-white/[0.02] text-muted')}>
+            <span className="grid h-7 w-7 flex-none place-items-center rounded-full text-xs font-bold" style={lot.clues[i] ? { background: 'var(--grad)', color: 'var(--on-accent)' } : { background: 'rgba(0,0,0,.4)' }}>{i + 1}</span>
             <span className="text-sm">{lot.clues[i] ?? <span className="flex items-center gap-1.5"><Lock size={13} /> Unlocks in a moment…</span>}</span>
           </li>
         ))}
@@ -248,7 +252,7 @@ function BidConsole({ x, layout, onOpenCard }: { x: Ctx; layout: 'all' | 'turn';
       <div className="grid min-h-[260px] place-items-center text-center">
         {sale && c ? (
           <div className="rise">
-            <div className={cx('font-display text-5xl font-bold uppercase tracking-wider sm:text-6xl', sale.type === 'sold' ? 'gold-text' : 'text-slate-400')}>{sale.type === 'sold' ? 'Sold!' : 'Unsold'}</div>
+            <div className={cx('font-display text-6xl font-bold uppercase tracking-wider sm:text-7xl', sale.type === 'sold' ? 'gold-text drop-shadow-[0_0_30px_rgba(255,210,87,.55)]' : 'text-slate-400')}>{sale.type === 'sold' ? 'Sold!' : 'Unsold'}</div>
             {sale.type === 'sold' ? (
               <p className="mt-3 font-display text-2xl font-bold uppercase sm:text-3xl">
                 {c.name} <span className="text-muted">→</span> <span style={{ color: x.color(sale.pid) }}>{x.name(sale.pid)}</span> <span className="text-muted">—</span> <span className="tnum">{formatINR(sale.price)}</span>
@@ -266,7 +270,7 @@ function BidConsole({ x, layout, onOpenCard }: { x: Ctx; layout: 'all' | 'turn';
         ) : (
           <div className="float">
             <Gavel size={44} className="mx-auto text-gold" />
-            <div className="mt-3 font-display text-4xl font-bold uppercase">Get ready</div>
+            <div className="mt-3 font-display text-5xl font-bold uppercase grad-text">Get ready</div>
             <p className="mt-1 text-sm text-muted">The first card enters the arena in a moment.</p>
           </div>
         )}
@@ -280,7 +284,7 @@ function BidConsole({ x, layout, onOpenCard }: { x: Ctx; layout: 'all' | 'turn';
     <div className="flex flex-wrap items-center gap-2">
       {[0, ...steps].map((s, i) => (
         <button key={s} onClick={() => { setExtra(s); setCustom(''); }} aria-pressed={!customAmt && extra === s}
-          className={cx('rounded-xl border px-3 py-2 text-sm font-bold transition', !customAmt && extra === s ? 'border-accent bg-accent/25 text-white' : 'border-line bg-white/[0.04] text-slate-300 hover:bg-white/10')}>
+          className={cx('seg px-3.5 py-2 text-sm', !customAmt && extra === s ? 'seg-on' : 'hover:bg-white/10')}>
           {i === 0 ? 'Min bid' : `+${compactINR(s)}`}<kbd className="ml-1.5 hidden text-[10px] font-normal text-muted lg:inline">{'QWER'[i]}</kbd>
         </button>
       ))}
@@ -295,11 +299,11 @@ function BidConsole({ x, layout, onOpenCard }: { x: Ctx; layout: 'all' | 'turn';
     <div className="space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="min-w-0">
-          <div className="text-xs font-bold uppercase tracking-widest text-muted">{leader ? 'Current bid' : 'Opening price'}{lot.pass > 0 && <Chip tone="warn" className="ml-2 !py-0.5">Re-auction · half price</Chip>}</div>
-          <div key={bump} className="bump font-display text-[clamp(1.9rem,9.5vw,3rem)] font-bold leading-none tnum sm:text-6xl"><Money value={leader ? lot.bid : lot.opening} /></div>
+          <div className="kicker">{leader ? 'Current bid' : 'Opening price'}{lot.pass > 0 && <Chip tone="warn" className="ml-2 !py-0.5">Re-auction · half price</Chip>}</div>
+          <div key={bump} className="bump price mt-1 text-[clamp(2.1rem,10vw,3.2rem)] tnum sm:text-7xl"><Money value={leader ? lot.bid : lot.opening} /></div>
           <div className="mt-2 flex min-h-[34px] flex-wrap items-center gap-2">
             {leader ? (
-              <span className="pulse flex items-center gap-2 rounded-full py-1 pl-1 pr-3 text-sm font-bold text-[#06101f]" style={{ background: x.color(leader.id) }}>
+              <span className="pulse leader-pill" style={{ background: `linear-gradient(90deg, ${x.color(leader.id)}, color-mix(in srgb, ${x.color(leader.id)} 70%, #fff))`, color: '#06101f' }}>
                 <Avatar name={leader.name} color="#ffffffaa" size={24} /><Crown size={14} /> {leader.name} leads
               </span>
             ) : (
@@ -331,7 +335,7 @@ function BidConsole({ x, layout, onOpenCard }: { x: Ctx; layout: 'all' | 'turn';
               {!snap.me && (
                 <div className="flex flex-wrap gap-2" role="radiogroup" aria-label="Who is bidding">
                   {m.participants.map((q) => (
-                    <button key={q.id} role="radio" aria-checked={q.id === active} onClick={() => setActive(q.id)} className={cx('flex items-center gap-2 rounded-full border px-3 py-1.5 text-sm font-semibold', q.id === active ? 'border-white bg-white/15' : 'border-line bg-white/[0.03] text-slate-300')}>
+                    <button key={q.id} role="radio" aria-checked={q.id === active} onClick={() => setActive(q.id)} className={cx('seg flex items-center gap-2 rounded-full px-3.5 py-1.5 text-sm', q.id === active && 'seg-on')}>
                       <span className="h-2.5 w-2.5 rounded-full" style={{ background: x.color(q.id) }} />{q.name}
                     </button>
                   ))}
@@ -339,9 +343,9 @@ function BidConsole({ x, layout, onOpenCard }: { x: Ctx; layout: 'all' | 'turn';
               )}
               <button
                 onClick={() => place(single)} disabled={!chk.ok || pending} aria-describedby="bid-reason"
-                className={cx('sticky bottom-2 z-20 w-full overflow-hidden rounded-2xl px-5 py-4 text-center font-display font-bold uppercase tracking-wide transition active:scale-[0.98] lg:static', leading ? 'bg-gradient-to-b from-[#ffe9a8] to-gold text-[#1a1203]' : chk.ok ? 'bg-accent text-white shadow-[0_14px_40px_-12px_var(--accent)] hover:brightness-110' : 'bg-white/[0.07] text-slate-400')}
+                className={cx('bid-btn sticky bottom-2 z-20 lg:static', leading ? 'bid-lead' : chk.ok && !pending ? 'bid-go' : 'bid-off')}
               >
-                <span className="block text-2xl sm:text-3xl">{leading ? 'You hold the highest bid' : pending ? 'Confirming…' : <>Place bid <span className="tnum">{formatINR(amount)}</span></>}</span>
+                <span className="block text-[1.65rem] leading-tight sm:text-4xl">{leading ? 'You hold the highest bid' : pending ? 'Confirming…' : <>Place bid <span className="tnum">{formatINR(amount)}</span></>}</span>
                 <span id="bid-reason" className="mt-0.5 block text-xs font-semibold normal-case tracking-normal opacity-90">
                   {chk.ok ? `${p.name}: ${formatINR(p.budget - amount)} left after this bid` : chk.reason}
                 </span>
@@ -360,8 +364,8 @@ function BidConsole({ x, layout, onOpenCard }: { x: Ctx; layout: 'all' | 'turn';
             const leading = lot.leader === p.id;
             return (
               <button key={p.id} onClick={() => place(p.id)} disabled={!chk.ok}
-                className={cx('relative rounded-xl border-2 px-3 py-2.5 text-left transition active:scale-[0.97]', leading ? 'border-gold bg-gold/15' : chk.ok ? 'bg-white/[0.05] hover:bg-white/[0.11]' : 'border-transparent bg-white/[0.03] opacity-60')}
-                style={!leading && chk.ok ? { borderColor: x.color(p.id) } : undefined}
+                className={cx('bid-tile', leading ? 'border-gold! bg-gold/15 shadow-[0_0_24px_-8px_rgba(255,210,87,.8)]' : !chk.ok && 'opacity-55')}
+                style={!leading && chk.ok ? { borderColor: x.color(p.id), background: `linear-gradient(135deg, color-mix(in srgb, ${x.color(p.id)} 22%, transparent), rgba(255,255,255,.04))` } : undefined}
               >
                 <span className="flex items-center gap-2 font-display text-lg font-bold uppercase leading-tight">
                   <span className="h-3 w-3 flex-none rounded-full" style={{ background: x.color(p.id) }} /><span className="truncate">{p.name}</span>
@@ -380,7 +384,7 @@ function BidConsole({ x, layout, onOpenCard }: { x: Ctx; layout: 'all' | 'turn';
       <div className="flex flex-wrap items-center justify-between gap-2 text-[11px] text-muted">
         <span className="hidden lg:inline">{single ? 'Space / Enter = place bid · Q W E R = bid size' : 'Keys 1–8 = instant bid for that player · Q W E R = bid size'}</span>
         {snap.kind === 'local' && (
-          <button onClick={() => ctl.act({ type: 'hammer' })} className="ml-auto flex items-center gap-1.5 rounded-lg border border-line px-3 py-1.5 font-semibold text-slate-200 hover:bg-white/10">
+          <button onClick={() => ctl.act({ type: 'hammer' })} className="btn btn-soft ml-auto h-9 px-3.5 text-xs">
             <Hammer size={13} /> {lot.leader ? 'Hammer — sell now' : 'Nobody wants it — skip'}
           </button>
         )}
@@ -404,7 +408,7 @@ function Roster({ x, onSquad }: { x: Ctx; onSquad: (pid: string) => void }) {
         const leading = m.lot?.leader === p.id;
         const full = p.squad.length >= m.config.squadSize;
         return (
-          <button key={p.id} onClick={() => onSquad(p.id)} className={cx('w-full rounded-xl border p-2.5 text-left transition hover:bg-white/[0.07]', leading ? 'border-gold bg-gold/10' : 'border-line bg-white/[0.03]')}>
+          <button key={p.id} onClick={() => onSquad(p.id)} className={cx('team-row', leading && 'leading')} style={{ '--team': x.color(p.id) } as React.CSSProperties}>
             <div className="flex items-center gap-2.5">
               <Avatar name={p.name} color={x.color(p.id)} />
               <div className="min-w-0 flex-1">
@@ -423,7 +427,7 @@ function Roster({ x, onSquad }: { x: Ctx; onSquad: (pid: string) => void }) {
             </div>
             <div className="mt-2 flex items-center gap-1.5">
               <div className="flex flex-1 gap-1" aria-label={`Squad ${p.squad.length} of ${m.config.squadSize}`}>
-                {Array.from({ length: m.config.squadSize }, (_, k) => <span key={k} className="h-1.5 flex-1 rounded-full" style={{ background: k < p.squad.length ? x.color(p.id) : 'rgba(255,255,255,0.1)' }} />)}
+                {Array.from({ length: m.config.squadSize }, (_, k) => <span key={k} className="h-2 flex-1 rounded-full" style={{ background: k < p.squad.length ? x.color(p.id) : 'rgba(255,255,255,0.1)', boxShadow: k < p.squad.length ? `0 0 8px -1px ${x.color(p.id)}` : undefined }} />)}
               </div>
               <span className={cx('text-[11px] font-bold tnum', full ? 'text-emerald-300' : 'text-slate-300')}>{p.squad.length}/{m.config.squadSize}{full ? ' ✔' : ''}</span>
             </div>
@@ -446,7 +450,7 @@ function Feed({ x, onOpenCard }: { x: Ctx; onOpenCard: (id: string) => void }) {
     <div>
       <div className="mb-3 flex gap-1.5" role="tablist">
         {([['bids', `Live bids (${m.totalBids})`], ['sales', `Sales (${m.sales.length})`], ['next', 'Up next']] as const).map(([k, label]) => (
-          <button key={k} role="tab" aria-selected={tab === k} onClick={() => setTab(k)} className={cx('rounded-lg px-3 py-1.5 text-xs font-bold uppercase tracking-wider', tab === k ? 'bg-accent/25 text-white' : 'text-muted hover:text-white')}>{label}</button>
+          <button key={k} role="tab" aria-selected={tab === k} onClick={() => setTab(k)} className={cx('rounded-full px-3.5 py-1.5 text-xs font-bold uppercase tracking-wider transition', tab === k ? 'bg-accent/25 text-white ring-1 ring-accent/60 shadow-[0_0_18px_-8px_var(--glow)] bg-accent/25 text-white' : 'text-muted hover:text-white')}>{label}</button>
         ))}
       </div>
       {tab === 'bids' && (
@@ -586,16 +590,16 @@ export function Auction({ snap, ctl, onExit }: { snap: Snap; ctl: Controller; on
   const filled = m.participants.reduce((a, p) => a + p.squad.length, 0);
 
   return (
-    <div className="mx-auto flex min-h-screen max-w-[1400px] flex-col gap-3 p-2 sm:p-4" data-mode={cfg.mode}>
+    <div className="screen-in mx-auto flex min-h-screen max-w-[1400px] flex-col gap-3 p-2 sm:p-4" data-mode={cfg.mode}>
       <div className={cx('scene', cfg.mode)} />
-      <header className="glass sticky top-2 z-30 flex flex-wrap items-center gap-x-4 gap-y-2 px-3 py-2 sm:px-4">
+      <header className="hud sticky top-2 z-30 flex flex-wrap items-center gap-x-4 gap-y-2 px-3 py-2 sm:px-4">
         <Logo size="sm" />
         <Chip tone="accent">{cfg.mode === 'football' ? 'Football' : 'Heroes'} · {cfg.auctionType === 'mystery' ? 'Mystery' : 'Classic'}</Chip>
-        <div className="flex items-center gap-3 text-xs text-slate-300">
-          <span>Round <b className="text-white tnum">{m.round}</b>{m.pass > 0 && <span className="text-amber-300"> · re-auction</span>}</span>
-          <span><b className="text-white tnum">{m.queueCount}</b> cards left</span>
-          <span className="hidden sm:inline"><b className="text-white tnum">{m.unsold.length}</b> unsold</span>
-          <span className="hidden md:inline"><b className="text-white tnum">{filled}</b>/{m.participants.length * cfg.squadSize} slots filled</span>
+        <div className="flex flex-wrap items-center gap-1.5 text-xs text-slate-300">
+          <span className="hud-stat">Round <b className="tnum">{m.round}</b>{m.pass > 0 && <span className="text-amber-300"> · re-auction</span>}</span>
+          <span className="hud-stat"><b className="tnum">{m.queueCount}</b> cards left</span>
+          <span className="hud-stat hidden sm:inline-flex"><b className="tnum">{m.unsold.length}</b> unsold</span>
+          <span className="hud-stat hidden md:inline-flex"><b className="tnum">{filled}</b>/{m.participants.length * cfg.squadSize} slots filled</span>
         </div>
         <div className="ml-auto flex items-center gap-1.5">
           {m.phase === 'bidding' && m.lot && <div className="lg:hidden" aria-label="Live auction countdown"><Countdown size={48} deadline={m.lot.deadline} total={cfg.timerSec * 1000} offset={snap.offset} paused={m.paused} pausedAt={m.pausedAt} /></div>}
@@ -606,25 +610,25 @@ export function Auction({ snap, ctl, onExit }: { snap: Snap; ctl: Controller; on
           )}
           {snap.kind === 'online' && snap.status !== 'open' && <Chip tone="warn"><WifiOff size={12} /> Reconnecting…</Chip>}
           {snap.kind === 'local' && (
-            <button onClick={() => setLayout(layout === 'all' ? 'turn' : 'all')} title={layout === 'all' ? 'Switch to turn-taking view (one bidder at a time)' : 'Switch to all-players view'} aria-label="Toggle bidding layout" className="rounded-lg p-2 text-slate-300 hover:bg-white/10">
+            <button onClick={() => setLayout(layout === 'all' ? 'turn' : 'all')} title={layout === 'all' ? 'Switch to turn-taking view (one bidder at a time)' : 'Switch to all-players view'} aria-label="Toggle bidding layout" className="icon-btn">
               {layout === 'all' ? <User size={17} /> : <LayoutGrid size={17} />}
             </button>
           )}
-          <button onClick={toggleMute} aria-label={muted ? 'Unmute' : 'Mute'} className="rounded-lg p-2 text-slate-300 hover:bg-white/10">{muted ? <VolumeX size={17} /> : <Volume2 size={17} />}</button>
-          {snap.isHost && <button onClick={() => ctl.act({ type: m.paused ? 'resume' : 'pause' })} aria-label={m.paused ? 'Resume' : 'Pause'} className="rounded-lg p-2 text-slate-300 hover:bg-white/10">{m.paused ? <Play size={17} /> : <Pause size={17} />}</button>}
-          <button onClick={() => setHost(true)} aria-label="Match controls" className="rounded-lg p-2 text-slate-300 hover:bg-white/10"><Settings size={17} /></button>
-          <button onClick={() => window.confirm(snap.kind === 'local' ? 'Leave this match? You can resume it from the home screen.' : 'Leave this room? Your squad stays reserved while the match runs.') && onExit()} aria-label="Leave match" className="rounded-lg p-2 text-slate-300 hover:bg-white/10"><LogOut size={17} /></button>
+          <button onClick={toggleMute} aria-label={muted ? 'Unmute' : 'Mute'} className="icon-btn">{muted ? <VolumeX size={17} /> : <Volume2 size={17} />}</button>
+          {snap.isHost && <button onClick={() => ctl.act({ type: m.paused ? 'resume' : 'pause' })} aria-label={m.paused ? 'Resume' : 'Pause'} className="icon-btn">{m.paused ? <Play size={17} /> : <Pause size={17} />}</button>}
+          <button onClick={() => setHost(true)} aria-label="Match controls" className="icon-btn"><Settings size={17} /></button>
+          <button onClick={() => window.confirm(snap.kind === 'local' ? 'Leave this match? You can resume it from the home screen.' : 'Leave this room? Your squad stays reserved while the match runs.') && onExit()} aria-label="Leave match" className="icon-btn"><LogOut size={17} /></button>
         </div>
       </header>
 
-      <main className="grid flex-1 grid-cols-1 gap-3 lg:grid-cols-[minmax(240px,300px)_minmax(0,1fr)] xl:grid-cols-[minmax(260px,340px)_minmax(0,1fr)_minmax(270px,330px)]">
-        <section className="panel order-2 flex flex-col items-center justify-center p-4 sm:p-5 lg:order-none" aria-label="Card on auction">
+      <main className="grid flex-1 grid-cols-1 content-start gap-3 lg:grid-cols-[minmax(240px,300px)_minmax(0,1fr)] xl:grid-cols-[minmax(260px,340px)_minmax(0,1fr)_minmax(270px,330px)]">
+        <section className="panel stage order-2 flex flex-col items-center justify-center p-4 sm:p-5 lg:order-none" aria-label="Card on auction">
           <Stage x={x} onOpen={setViewer} />
         </section>
         <section className="panel relative order-1 p-4 sm:p-6 lg:order-none" aria-label="Bidding">
           <BidConsole x={x} layout={layout} onOpenCard={setViewer} />
           {m.paused && (
-            <div className="absolute inset-0 z-20 grid place-items-center rounded-[18px] bg-[#050814]/85 backdrop-blur-sm">
+            <div className="absolute inset-0 z-20 grid place-items-center rounded-[24px] bg-[#050814]/85 backdrop-blur-sm">
               <div className="text-center">
                 <Pause size={40} className="mx-auto text-gold" />
                 <div className="mt-2 font-display text-4xl font-bold uppercase">Auction paused</div>

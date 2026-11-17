@@ -1,5 +1,7 @@
 # Ultimate Auction Arena V2 — delivery report
 
+> **Superseded in part.** Since this report, the game bundles official EA SPORTS FC 27 base ratings for 265 players and freely licensed photos for 324 footballers, and the UI was redesigned. Sections 5 and 6 below describe the earlier state. See the README sections "Data and images" for the current position.
+
 Updated in the user's existing game directory. The playable preview is **http://localhost:8788**. This is a local server, not a public deployment.
 
 ## 1. Original project and inspection

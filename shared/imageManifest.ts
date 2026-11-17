@@ -35,7 +35,7 @@ export const PROJECT_IMAGE_MANIFEST: readonly ProjectImageAsset[] = [
   },
 ] as const;
 
-export type CardImageKind = 'imported-https' | 'generated-fallback';
+export type CardImageKind = 'bundled-licensed' | 'imported-https' | 'generated-fallback';
 
 export interface CardImageRecord {
   cardId: string;
@@ -112,6 +112,16 @@ function readImageMeta(card: Card): {
 /** Resolve honest portrait provenance for one card. */
 export function cardImageRecord(card: Card): CardImageRecord {
   const fallbackKey = `${card.kind}:${card.id}`;
+  // Photos shipped with the game (public/portraits) always carry their own licence record.
+  if (typeof card.image === 'string' && /^\/portraits\/[a-z0-9-]+\.(jpg|png|webp)$/.test(card.image)) {
+    const meta = readImageMeta(card);
+    const verified = Boolean(meta.explicitlyVerified && meta.license && meta.attribution && meta.sourceUrl);
+    return {
+      cardId: card.id, cardName: card.name, kind: 'bundled-licensed', src: card.image, fallbackKey,
+      source: meta.source ?? 'Bundled photo', sourceUrl: meta.sourceUrl, license: meta.license, attribution: meta.attribution,
+      verifiedAt: verified ? meta.verifiedAt : null, verified, missingAttribution: !meta.attribution,
+    };
+  }
   const src = httpsUrl(card.image);
   if (!src) {
     return {
@@ -153,7 +163,7 @@ export function auditCardImages(cards: readonly Card[]): CardImageAudit {
   const audit: CardImageAudit = { total: cards.length, verified: 0, imported: 0, fallback: 0, missingAttribution: 0 };
   for (const card of cards) {
     const record = cardImageRecord(card);
-    if (record.kind === 'imported-https') audit.imported += 1;
+    if (record.kind !== 'generated-fallback') audit.imported += 1;
     else audit.fallback += 1;
     if (record.verified) audit.verified += 1;
     if (record.missingAttribution) audit.missingAttribution += 1;

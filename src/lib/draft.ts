@@ -13,14 +13,20 @@ export interface Draft {
 
 export const PLAYER_COLORS = ['#38bdf8', '#f472b6', '#facc15', '#4ade80', '#fb923c', '#a78bfa', '#f87171', '#2dd4bf'];
 
+/** What the setup wizard starts from: Football opens on the bundled official FC 27 ratings. */
+export function startConfig(mode: Mode, budget?: number): MatchConfig {
+  const base = defaultConfig(mode, budget);
+  return mode === 'football' ? { ...base, ratingMode: 'fc27' } : base;
+}
+
 export function newDraft(mode: Mode = 'football'): Draft {
-  return { config: defaultConfig(mode), count: 4, names: Array(8).fill(''), teams: Array(8).fill('') };
+  return { config: startConfig(mode), count: 4, names: Array(8).fill(''), teams: Array(8).fill('') };
 }
 
 /** Switches mode while keeping budget-independent choices; mode-specific fields reset to sensible defaults. */
 export function withMode(d: Draft, mode: Mode): Draft {
   if (d.config.mode === mode) return d;
-  const base = defaultConfig(mode, d.config.budget);
+  const base = startConfig(mode, d.config.budget);
   return {
     ...d,
     config: {

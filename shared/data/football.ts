@@ -195,8 +195,22 @@ function roleOf(pos: string, s: number[]): string {
   }
 }
 
+/** Descriptive labels derived purely from the position and six attributes of a card. */
+export function describeFootballer(pos: string, stats: number[]) {
+  const line = LINE_OF[pos];
+  const isGk = line === 'GK';
+  const words = isGk ? GK_WORDS : WORDS;
+  const order = stats.map((v, i) => ({ v, i })).sort((a, b) => b.v - a.v);
+  const style = isGk ? (stats[2] >= 86 ? 'Ball-Playing Keeper' : stats[3] >= 92 ? 'Reflex Shot-Stopper' : 'Commanding Keeper') : `${STYLE_A[order[0].i]} ${STYLE_N[order[1].i]}`;
+  return { line, role: roleOf(pos, stats), style, strengths: [words[order[0].i][0], words[order[1].i][0]], weaknesses: [words[order[5].i][1]] };
+}
+
+/** Career clues written for the classic roster, reused for the same player in official mode. */
+export const CAREER_CLUES: Record<string, string> = {};
+
 function build(r: Row): FootballCard {
   const [name, pos, alt, nation, club, era, overall, stats, trait, clue] = r;
+  CAREER_CLUES[slug(name)] = clue;
   const line = LINE_OF[pos];
   const alts = alt ? alt.split(',') : [];
   const isGk = line === 'GK';

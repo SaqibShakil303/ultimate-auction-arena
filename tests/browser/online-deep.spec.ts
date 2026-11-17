@@ -214,7 +214,7 @@ test.describe('online multiplayer in depth', () => {
       blocked = true;
       for (const s of live.splice(0)) { void s.server.close(); void s.page.close(); }
       await expect(g.getByText('Reconnecting…')).toBeVisible({ timeout: 10_000 });
-      await expect(host.getByLabel('Disconnected')).toBeVisible({ timeout: 10_000 });
+      await expect(host.getByLabel('Disconnected')).toBeVisible({ timeout: 45_000 }); // an abrupt drop is noticed by the server heartbeat (≤ 30 s)
       // Actions are refused locally while offline rather than silently lost.
       // The auction carries on for everyone else.
       await expect(host.getByText('Hari leads')).toBeVisible();

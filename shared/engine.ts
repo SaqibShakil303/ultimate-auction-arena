@@ -99,16 +99,27 @@ export function defaultConfig(mode: Mode, budget = 1_000_000): MatchConfig {
 
 // ───────────────────────── pool + setup validation ─────────────────────────
 
+/**
+ * EA publishes no Icon ratings, so all-time greats only exist here as clearly labelled custom
+ * cards. In an official-ratings match they may join as guests when the host enables the
+ * Legends pack; they keep their "custom" label on every card and never count as official data.
+ */
+const legendGuest = (c: FootballCard, ratingMode: string): boolean =>
+  ratingMode !== 'prime' && (c.ratingMode ?? 'prime') === 'prime' && c.pack === 'legends' && c.id.startsWith('f-');
+
 export function buildPool(catalog: Card[], cfg: MatchConfig): Card[] {
   const kind = cfg.mode === 'football' ? 'football' : 'hero';
   const ratingMode = cfg.ratingMode ?? 'prime'; // backward-compatible with pre-V2 saved settings
-  return catalog.filter(
+  const pool = catalog.filter(
     (c) => c.kind === kind
-      && (c.kind !== 'football' || (c.ratingMode ?? 'prime') === ratingMode)
-      && (c.kind !== 'football' || ratingMode === 'prime' || (c.verificationStatus === 'verified' && c.overall > 0 && c.stats.length === 6 && c.stats.every((v) => v > 0)))
+      && (c.kind !== 'football' || (c.ratingMode ?? 'prime') === ratingMode || legendGuest(c, ratingMode))
+      && (c.kind !== 'football' || ratingMode === 'prime' || legendGuest(c, ratingMode) || (c.verificationStatus === 'verified' && c.overall > 0 && c.stats.length === 6 && c.stats.every((v) => v > 0)))
       && (c.pack === 'custom' || cfg.packs.includes(c.pack))
       && !cfg.excluded.includes(c.id),
   );
+  // An "official" auction made only of custom-rated legends would be official in name only.
+  if (kind === 'football' && ratingMode !== 'prime' && !pool.some((c) => c.kind === 'football' && c.verificationStatus === 'verified')) return [];
+  return pool;
 }
 
 export interface SetupCheck { errors: string[]; warnings: string[]; needed: number; poolSize: number }

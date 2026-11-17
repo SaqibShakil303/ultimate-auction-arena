@@ -5,14 +5,16 @@ import type {
   RatedFootballCard, RatingMode, RatingVerificationStatus, Threat,
 } from './types';
 import { HERO_CLASSES, THREATS } from './types';
-import { FOOTBALLERS, LINE_NAME, LINE_OF } from './data/football';
+import { CAREER_CLUES, describeFootballer, FOOTBALLERS, LINE_NAME, LINE_OF } from './data/football';
+import { FC27_RETRIEVED, FC27_ROWS, type Fc27Row } from './data/fc27';
+import { PORTRAITS, PORTRAITS_RETRIEVED } from './data/portraits';
 import { HEROES } from './data/heroes';
 import { clamp, rarityOf, slug } from './util';
 
 export const PACKS: Record<Mode, { id: string; label: string; note: string }[]> = {
   football: [
-    { id: 'legends', label: 'Legends', note: 'All-time greats' },
-    { id: 'modern', label: 'Modern Stars', note: 'Contemporary players' },
+    { id: 'modern', label: 'Current Players', note: 'Today\u2019s stars' },
+    { id: 'legends', label: 'Legends', note: 'All-time greats \u00b7 custom ratings' },
   ],
   avengers: [
     { id: 'core', label: 'Heroes (Marvel-inspired)', note: 'Core roster' },
@@ -21,11 +23,52 @@ export const PACKS: Record<Mode, { id: string; label: string; note: string }[]> 
   ],
 };
 
+/** One official FC 27 record becomes a playable card. Numbers, position, club and nation are EA values; nothing is adjusted. */
+function fc27Card(r: Fc27Row): RatedFootballCard {
+  const d = describeFootballer(r.pos, r.stats);
+  const signature = r.playStyles.find((p) => p.endsWith('+')) ?? r.playStyles[0];
+  const career = CAREER_CLUES[slug(r.name)];
+  return {
+    kind: 'football', id: `fc27-${r.id}`, name: r.name, overall: r.overall, rarity: rarityOf(r.overall), stats: r.stats,
+    trait: signature ? `PlayStyle: ${signature}` : d.style,
+    line: d.line, pos: r.pos, alt: r.alt, altLines: [...new Set(r.alt.map((a) => LINE_OF[a]).filter((l) => l && l !== d.line))],
+    role: d.role, style: d.style, nation: r.nation, club: r.club, era: 'Modern', pack: 'modern',
+    strengths: d.strengths, weaknesses: d.weaknesses,
+    clues: [
+      `${LINE_NAME[d.line]} (${r.pos}) from ${r.nation}`,
+      career ?? `Plays club football in the ${r.league}`,
+      `${r.club} \u00b7 ${r.playStyles.slice(0, 2).join(', ') || d.style}`,
+    ],
+    ratingMode: 'fc27', edition: 'FC 27', cardType: 'standard', source: r.url,
+    verifiedAt: FC27_RETRIEVED, verificationStatus: 'verified', playStyles: r.playStyles,
+  };
+}
+
+/**
+ * Adds the freely licensed photo for a footballer, with its author and licence, when one exists
+ * (see scripts/fetch-portraits.ts). Cards without one keep their generated artwork.
+ */
+export function withPortrait<T extends FootballCard>(card: T): T {
+  const p = PORTRAITS[slug(card.name)];
+  if (!p || card.image) return card;
+  return {
+    ...card,
+    image: `/portraits/${p.file}`,
+    imageMeta: {
+      source: 'Wikimedia Commons', sourceUrl: p.page, license: p.license,
+      attribution: p.artist, verifiedAt: PORTRAITS_RETRIEVED, verified: true,
+    },
+  };
+}
+
+let fc27Cache: RatedFootballCard[] | null = null;
+let primeCache: RatedFootballCard[] | null = null;
+
 export function getCatalog(mode: Mode): Card[] {
   if (mode !== 'football') return HEROES;
-  // The legacy built-in table explicitly contains custom game-balance values. Materialise
+  // The classic built-in table explicitly contains custom game-balance values. Materialise
   // honest Prime-mode provenance without mutating that table or implying official EA data.
-  return FOOTBALLERS.map((card): RatedFootballCard => ({
+  primeCache ??= FOOTBALLERS.map((card): RatedFootballCard => withPortrait({
     ...card,
     ratingMode: 'prime',
     edition: 'Prime Legends',
@@ -35,6 +78,9 @@ export function getCatalog(mode: Mode): Card[] {
     verificationStatus: 'custom',
     playStyles: [],
   }));
+  // Official EA SPORTS FC 27 base ratings, generated from the public EA ratings page (see data/fc27.ts).
+  fc27Cache ??= FC27_ROWS.map((r) => withPortrait(fc27Card(r)));
+  return [...primeCache, ...fc27Cache];
 }
 
 export const emptyCustom = (): Custom => ({ edits: {}, imported: [] });

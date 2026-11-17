@@ -49,10 +49,10 @@ test('official mode stays empty without verified data and imports retain missing
   await register(page, 'football');
   await page.getByRole('radio', { name: '4-2-3-1', exact: true }).click();
   await page.getByRole('button', { name: 'Continue', exact: true }).click();
-  await page.getByRole('radio', { name: 'FC 27 Official (0)', exact: true }).click();
+  await page.getByRole('radio', { name: 'FC 26 Official (0)', exact: true }).click();
   await page.getByRole('button', { name: /Manage cards|Card pool administration|Edit.*import/i }).click();
   await page.getByText('Paste a JSON or CSV dataset', { exact: true }).click();
-  await page.locator('textarea').fill(JSON.stringify([{ name: 'Missing Attributes', ratingMode: 'fc27', pos: 'ST', overall: 90, verificationStatus: 'verified' }]));
+  await page.locator('textarea').fill(JSON.stringify([{ name: 'Missing Attributes', ratingMode: 'fc26', pos: 'ST', overall: 90, verificationStatus: 'verified' }]));
   await page.getByRole('button', { name: 'Import pasted cards' }).click();
   await expect(page.getByRole('dialog')).toContainText('Unverified cards cannot enter official auctions');
   await page.keyboard.press('Escape');

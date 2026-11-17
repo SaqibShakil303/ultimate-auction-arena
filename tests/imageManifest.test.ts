@@ -3,6 +3,9 @@ import type { Card } from '../shared/types';
 import { FOOTBALLERS } from '../shared/data/football';
 import { HEROES } from '../shared/data/heroes';
 import { auditCardImages, cardImageRecord, PROJECT_IMAGE_MANIFEST } from '../shared/imageManifest';
+import { getCatalog } from '../shared/catalog';
+import { PORTRAITS } from '../shared/data/portraits';
+import fs from 'node:fs';
 
 describe('central image manifest', () => {
   it('documents both generated arena assets', () => {
@@ -18,7 +21,28 @@ describe('central image manifest', () => {
     }
   });
 
-  it('reports zero built-in portrait coverage and an honest fallback for every card', () => {
+  it('credits every bundled portrait and keeps an honest fallback for every other card', () => {
+    const football = getCatalog('football');
+    const audit = auditCardImages(football);
+    const withPhoto = football.filter((c) => c.image);
+    expect(withPhoto.length).toBeGreaterThan(0);
+    expect(audit).toMatchObject({ total: football.length, verified: withPhoto.length, imported: withPhoto.length, missingAttribution: 0 });
+    for (const card of withPhoto) {
+      const record = cardImageRecord(card);
+      expect(record).toMatchObject({ kind: 'bundled-licensed', verified: true });
+      expect(record.license).toMatch(/^(CC|Public domain|PDM|No restrictions|Attribution$|GODL-India$)/i); // the free licences the fetch script accepts
+      expect(record.attribution).toBeTruthy();
+      expect(record.sourceUrl).toMatch(/^https:\/\/commons\.wikimedia\.org\/wiki\/File:/);
+      expect(fs.existsSync(`public${card.image}`)).toBe(true); // the photo really ships with the game
+    }
+    // Every credited file exists, and no photo ships without a credit.
+    const credited = new Set(Object.values(PORTRAITS).map((p) => p.file));
+    for (const f of fs.readdirSync('public/portraits')) expect(credited.has(f)).toBe(true);
+    // Heroes never use photos: there is no freely licensed artwork of those characters.
+    expect(auditCardImages(getCatalog('avengers'))).toMatchObject({ imported: 0, verified: 0 });
+  });
+
+  it('reports zero portrait coverage in the raw built-in tables (photos are attached by the catalog)', () => {
     const cards: Card[] = [...FOOTBALLERS, ...HEROES];
     expect(cards.every((card) => card.image === undefined)).toBe(true);
     expect(auditCardImages(cards)).toEqual({

@@ -1,0 +1,87 @@
+# Current players from the classic roster to include in FC 27 mode when EA lists them.
+# Format: Name | Nationality. A record is only accepted when BOTH match EA's page exactly,
+# so a different player who happens to share the name is never picked up.
+# Names EA does not list (retired players) are reported and skipped.
+Lionel Messi | Argentina
+Cristiano Ronaldo | Portugal
+Kylian Mbappé | France
+Erling Haaland | Norway
+Neymar | Brazil
+Mohamed Salah | Egypt
+Vinícius Júnior | Brazil
+Robert Lewandowski | Poland
+Harry Kane | England
+Karim Benzema | France
+Luis Suárez | Uruguay
+Lamine Yamal | Spain
+Bukayo Saka | England
+Son Heung-min | South Korea
+Ousmane Dembélé | France
+Lautaro Martínez | Argentina
+Victor Osimhen | Nigeria
+Khvicha Kvaratskhelia | Georgia
+Alexander Isak | Sweden
+Julián Álvarez | Argentina
+Nico Williams | Spain
+Rafael Leão | Portugal
+Cody Gakpo | Holland
+Ollie Watkins | England
+Marcus Rashford | England
+Darwin Núñez | Uruguay
+Sunil Chhetri | India
+Kevin De Bruyne | Belgium
+Luka Modrić | Croatia
+Toni Kroos | Germany
+Jude Bellingham | England
+Rodri | Spain
+Pedri | Spain
+N'Golo Kanté | France
+Sergio Busquets | Spain
+Bruno Fernandes | Portugal
+Martin Ødegaard | Norway
+Federico Valverde | Uruguay
+Jamal Musiala | Germany
+Florian Wirtz | Germany
+Declan Rice | England
+Vitinha | Portugal
+Alexis Mac Allister | Argentina
+Nicolò Barella | Italy
+Moisés Caicedo | Ecuador
+Dominik Szoboszlai | Hungary
+Aurélien Tchouaméni | France
+Gavi | Spain
+Kobbie Mainoo | England
+Virgil van Dijk | Netherlands
+Sergio Ramos | Spain
+Thiago Silva | Brazil
+Marcelo | Brazil
+Dani Alves | Brazil
+Rúben Dias | Portugal
+Achraf Hakimi | Morocco
+Trent Alexander-Arnold | England
+William Saliba | France
+Marquinhos | Brazil
+Dani Carvajal | Spain
+Joško Gvardiol | Croatia
+Kalidou Koulibaly | Senegal
+Alphonso Davies | Canada
+Theo Hernández | France
+Kim Min-jae | South Korea
+Kyle Walker | England
+Andrew Robertson | Scotland
+John Stones | England
+Ronald Araújo | Uruguay
+Manuel Neuer | Germany
+Thibaut Courtois | Belgium
+Alisson Becker | Brazil
+Gianluigi Donnarumma | Italy
+Ederson | Brazil
+Emiliano Martínez | Argentina
+Marc-André ter Stegen | Germany
+Hugo Lloris | France
+Gurpreet Singh Sandhu | India
+# Listed by EA under a short name:
+Vini Jr. | Brazil
+Alisson | Brazil
+Neymar Jr | Brazil
+Daniel Carvajal | Spain

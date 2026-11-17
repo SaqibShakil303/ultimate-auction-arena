@@ -32,20 +32,20 @@ export function Lobby({ snap, ctl, onLeave, onEdit }: { snap: Snap; ctl: Control
   const football = cfg.mode === 'football';
 
   return (
-    <div className="mx-auto min-h-screen max-w-4xl space-y-5 p-4 sm:p-8" data-mode={cfg.mode}>
+    <div className="screen-in mx-auto min-h-screen max-w-5xl space-y-5 p-4 sm:p-8" data-mode={cfg.mode}>
       <div className={cx('scene', cfg.mode)} />
       <header className="flex items-center justify-between gap-3">
         <Logo size="sm" />
-        <button onClick={onLeave} className="flex items-center gap-1.5 text-sm text-muted hover:text-white"><LogOut size={15} /> Leave room</button>
+        <button onClick={onLeave} className="btn btn-ghost h-9 px-3.5 text-xs"><LogOut size={15} /> Leave room</button>
       </header>
 
-      <section className="glass relative overflow-hidden p-5 sm:p-8">
-        <div className="text-xs font-bold uppercase tracking-[0.3em] text-accent">{football ? 'The players’ tunnel · draft night' : 'Headquarters · team assembly'}</div>
-        <h1 className="mt-1 font-display text-4xl font-bold uppercase sm:text-5xl">{football ? 'Football Auction' : 'Heroes Auction'} lobby</h1>
+      <section className="glass spotlight relative overflow-hidden p-5 sm:p-8">
+        <div className="kicker">{football ? 'The players’ tunnel · draft night' : 'Headquarters · team assembly'}</div>
+        <h1 className="mt-1 font-display text-4xl font-bold uppercase sm:text-6xl"><span className="grad-text">{football ? 'Football Auction' : 'Heroes Auction'}</span> lobby</h1>
         <div className="mt-5 flex flex-wrap items-end gap-4">
-          <div>
-            <div className="text-xs uppercase tracking-widest text-muted">Invite code</div>
-            <button onClick={() => copy(room.code, 'code')} className="flex items-center gap-3 font-display text-5xl font-bold tracking-[0.25em] gold-text sm:text-6xl" title="Copy code">
+          <div className="ticket">
+            <div className="text-[10px] font-bold uppercase tracking-[0.3em] text-gold/80">Invite code · tap to copy</div>
+            <button onClick={() => copy(room.code, 'code')} className="flex items-center gap-3 font-display text-5xl font-bold tracking-[0.25em] gold-text drop-shadow-[0_0_20px_rgba(255,210,87,.45)] sm:text-6xl" title="Copy code">
               {room.code} {copied === 'code' ? <Check size={22} className="text-emerald-300" /> : <Copy size={20} className="text-muted" />}
             </button>
           </div>
@@ -60,11 +60,11 @@ export function Lobby({ snap, ctl, onLeave, onEdit }: { snap: Snap; ctl: Control
 
       <section className="grid gap-5 md:grid-cols-[1.3fr_1fr]">
         <div className="panel p-4 sm:p-5">
-          <h2 className="mb-3 flex items-center justify-between font-display text-lg font-bold uppercase tracking-wider">Players <span className="text-sm font-normal normal-case text-muted">{room.members.length}/8</span></h2>
+          <h2 className="mb-3 flex items-center justify-between font-display text-xl font-bold uppercase tracking-wider"><span className="field-label !text-base">Players</span> <span className="rounded-full bg-white/10 px-2.5 py-0.5 font-display text-sm tnum">{room.members.length}/8</span></h2>
           <ul className="space-y-2">
             {room.members.map((m, i) => (
-              <li key={m.id} className={cx('flex items-center gap-3 rounded-xl border p-3', m.ready && m.connected ? 'border-emerald-500/40 bg-emerald-500/[0.07]' : 'border-line bg-white/[0.03]')}>
-                <span className="grid h-10 w-10 flex-none place-items-center rounded-full font-display text-lg font-bold text-[#06101f]" style={{ background: PLAYER_COLORS[i % PLAYER_COLORS.length] }}>{m.name.slice(0, 1).toUpperCase()}</span>
+              <li key={m.id} className={cx('seat rise', m.ready && m.connected && 'ready')} style={{ '--team': PLAYER_COLORS[i % PLAYER_COLORS.length], animationDelay: `${i * 60}ms` } as React.CSSProperties}>
+                <span className="avatar h-11 w-11 text-lg" style={{ background: `radial-gradient(circle at 35% 30%, #fff 0%, ${PLAYER_COLORS[i % PLAYER_COLORS.length]} 42%, color-mix(in srgb, ${PLAYER_COLORS[i % PLAYER_COLORS.length]} 70%, #000) 100%)` }}>{m.name.slice(0, 1).toUpperCase()}</span>
                 <div className="min-w-0 flex-1">
                   <div className="flex items-center gap-1.5 font-semibold"><span className="truncate">{m.name}</span>{m.id === room.hostId && <Crown size={14} className="text-gold" aria-label="Host" />}{m.id === snap.me && <Chip tone="accent" className="!px-1.5 !py-0 !text-[10px]">You</Chip>}</div>
                   <div className="truncate text-xs text-muted">{m.team}</div>
@@ -75,13 +75,14 @@ export function Lobby({ snap, ctl, onLeave, onEdit }: { snap: Snap; ctl: Control
                 )}
               </li>
             ))}
-            {room.members.length < 2 && <li className="rounded-xl border border-dashed border-line p-5 text-center text-sm text-muted">Share the code or link — friends join from their own phone or laptop.</li>}
+            {room.members.length < 2 && <li className="seat-empty px-4 text-center">Share the code or link — friends join from their own phone or laptop.</li>}
+            {Array.from({ length: Math.max(0, Math.min(2, 8 - room.members.length) - (room.members.length < 2 ? 1 : 0)) }, (_, k) => <li key={`open-${k}`} className="seat-empty" aria-hidden="true">Open seat</li>)}
           </ul>
         </div>
 
         <div className="space-y-4">
           <div className="panel p-4 sm:p-5">
-            <h2 className="mb-3 flex items-center justify-between font-display text-lg font-bold uppercase tracking-wider">Match settings
+            <h2 className="mb-3 flex items-center justify-between font-display text-xl font-bold uppercase tracking-wider"><span className="field-label !text-base">Match settings</span>
               {snap.isHost && <button onClick={onEdit} className="flex items-center gap-1 text-xs font-semibold normal-case text-accent"><Settings size={13} /> Edit</button>}
             </h2>
             <dl className="space-y-1.5 text-sm">
@@ -92,7 +93,7 @@ export function Lobby({ snap, ctl, onLeave, onEdit }: { snap: Snap; ctl: Control
                 ['Timer', `${cfg.timerSec}s · +${cfg.antiSnipeSec}s anti-snipe`],
                 ['Increment', formatINR(cfg.increment)],
                 ['Card pool', `${room.poolSize} cards`],
-              ] as const).map(([k, v]) => <div key={k} className="flex justify-between gap-3"><dt className="text-muted">{k}</dt><dd className="text-right font-medium">{v}</dd></div>)}
+              ] as const).map(([k, v]) => <div key={k} className="flex justify-between gap-3 border-b border-white/[0.06] py-1.5 last:border-0"><dt className="text-muted">{k}</dt><dd className="text-right font-semibold">{v}</dd></div>)}
             </dl>
             {room.errors.filter((e) => room.members.length >= 2 || !/between 2 and 8/.test(e)).map((e) => <p key={e} className="mt-3 rounded-lg bg-rose-500/10 px-3 py-2 text-xs text-rose-200">{e}</p>)}
             {room.warnings.map((e) => <p key={e} className="mt-3 rounded-lg bg-amber-500/10 px-3 py-2 text-xs text-amber-200">{e}</p>)}
