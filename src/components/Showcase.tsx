@@ -27,8 +27,9 @@ export const Showcase = memo(function Showcase() {
     const hero = getCatalog('avengers').filter((c) => HERO_PICKS.includes(c.name));
     return { football: picks.slice(0, 6), icon: topIcon, heroes: hero, photos: Object.keys(PORTRAITS).length };
   }, []);
-  // The Mythic Icon takes the centre of the fan.
-  const fan = [football[0], football[1], heroes[0], icon, football[2], heroes[1], football[3]].filter(Boolean) as Card[];
+  // The Mythic Icon takes the centre of the fan. Phones hide both ends, so the second hero sits at
+  // an end and the five cards a phone shows still include four real photos.
+  const fan = [football[0], football[1], heroes[0], icon, football[2], football[3], heroes[1]].filter(Boolean) as Card[];
   const mid = (fan.length - 1) / 2;
   return (
     <section className="showcase mt-8" aria-label="Featured cards">

@@ -78,7 +78,15 @@ test('card detail credits the photographer and links the official EA rating', as
   await page.getByRole('region', { name: 'Card on auction' }).getByRole('button', { name: /overall/ }).click();
   const detail = page.getByRole('dialog');
   await expect(detail).toContainText(/Photo by .+ via Wikimedia Commons|generated placeholder/);
-  await expect(detail.getByRole('link', { name: /Open EA source/ })).toHaveAttribute('href', /^https:\/\/www\.ea\.com\/games\/ea-sports-fc\/ratings\/player-ratings\//);
+  // The shuffled first lot is a Gold player (EA ratings page) or an Icon (FUT.GG item page); each links to its own source.
+  const source = detail.getByRole('link', { name: /Open (EA|FUT\.GG) source/ });
+  await expect(source).toBeVisible();
+  if (/FUT\.GG/.test(await source.innerText())) {
+    await expect(detail).toContainText('In-game FC 27 Base Icon values as listed by FUT.GG');
+    await expect(source).toHaveAttribute('href', /^https:\/\/www\.fut\.gg\/players\/\d+-[a-z0-9-]+\/27-\d+\/$/);
+  } else {
+    await expect(source).toHaveAttribute('href', /^https:\/\/www\.ea\.com\/games\/ea-sports-fc\/ratings\/player-ratings\//);
+  }
 });
 
 test('heroes auction: original emblem art, cinematic theme', async ({ page }, info) => {
