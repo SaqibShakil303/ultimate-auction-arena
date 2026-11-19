@@ -112,8 +112,8 @@ function readImageMeta(card: Card): {
 /** Resolve honest portrait provenance for one card. */
 export function cardImageRecord(card: Card): CardImageRecord {
   const fallbackKey = `${card.kind}:${card.id}`;
-  // Photos shipped with the game (public/portraits) always carry their own licence record.
-  if (typeof card.image === 'string' && /^\/portraits\/[a-z0-9-]+\.(jpg|png|webp)$/.test(card.image)) {
+  // Photos shipped with the game (public/portraits, public/hero-portraits) always carry their own licence record.
+  if (typeof card.image === 'string' && /^\/(portraits|hero-portraits)\/[a-z0-9-]+\.(jpg|png|webp)$/.test(card.image)) {
     const meta = readImageMeta(card);
     const verified = Boolean(meta.explicitlyVerified && meta.license && meta.attribution && meta.sourceUrl);
     return {

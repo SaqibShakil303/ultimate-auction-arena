@@ -9,6 +9,7 @@ import { CAREER_CLUES, describeFootballer, FOOTBALLERS, LINE_NAME, LINE_OF } fro
 import { FC27_RETRIEVED, FC27_ROWS, type Fc27Row } from './data/fc27';
 import { FC27_ICONS, FC27_ICONS_RETRIEVED, type Fc27IconRow } from './data/fc27Icons';
 import { PORTRAITS, PORTRAITS_RETRIEVED } from './data/portraits';
+import { HERO_PORTRAITS, HERO_PORTRAITS_RETRIEVED } from './data/heroPortraits';
 import { HEROES } from './data/heroes';
 import { clamp, footballRarity, GOLD_MIN, rarityOf, slug } from './util';
 
@@ -93,11 +94,30 @@ export function withPortrait<T extends FootballCard>(card: T): T {
   };
 }
 
+/**
+ * Marvel-inspired heroes show a freely licensed photo of the actor who plays them on film (see
+ * scripts/fetch-hero-portraits.ts) — never character artwork. The invented Original Heroes, and
+ * heroes without a film actor or free photo, keep their original emblem art.
+ */
+export function withHeroPortrait(card: HeroCard): HeroCard {
+  const p = card.pack === 'original' ? undefined : HERO_PORTRAITS[slug(card.name)];
+  if (!p || card.image) return card;
+  return {
+    ...card,
+    image: `/hero-portraits/${p.file}`,
+    imageMeta: {
+      source: 'Wikimedia Commons', sourceUrl: p.page, license: p.license,
+      attribution: p.artist, verifiedAt: HERO_PORTRAITS_RETRIEVED, verified: true,
+    },
+  };
+}
+
+let heroCache: HeroCard[] | null = null;
 let fc27Cache: RatedFootballCard[] | null = null;
 let primeCache: RatedFootballCard[] | null = null;
 
 export function getCatalog(mode: Mode): Card[] {
-  if (mode !== 'football') return HEROES;
+  if (mode !== 'football') return (heroCache ??= HEROES.map(withHeroPortrait));
   // The classic built-in table explicitly contains custom game-balance values. Materialise
   // honest Prime-mode provenance without mutating that table or implying official EA data.
   primeCache ??= FOOTBALLERS.map((card): RatedFootballCard => withPortrait({

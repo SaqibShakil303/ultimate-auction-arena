@@ -89,12 +89,18 @@ test('card detail credits the photographer and links the official EA rating', as
   }
 });
 
-test('heroes auction: original emblem art, cinematic theme', async ({ page }, info) => {
+test('heroes auction: credited actor photo or original emblem art, cinematic theme', async ({ page }, info) => {
   await toAuction(page, 'heroes');
   await page.waitForTimeout(1200); // 30 s timer: plenty of time, and the console stays visible
   const stage = page.getByRole('region', { name: 'Card on auction' });
-  await expect(stage.locator('.uc-emblem svg')).toBeVisible();
-  await expect(stage.locator('img')).toHaveCount(0); // heroes never use photos
+  const photo = stage.locator('img');
+  // Never character artwork: either a bundled, credited actor photo or the original emblem.
+  if (await photo.count()) {
+    await expect(photo.first()).toHaveAttribute('src', /^\/hero-portraits\/[a-z0-9-]+\.(jpg|png|webp)$/);
+    await expect.poll(() => photo.first().evaluate((img: HTMLImageElement) => img.complete && img.naturalWidth > 0)).toBe(true);
+  } else {
+    await expect(stage.locator('.uc-emblem svg')).toBeVisible();
+  }
   await noOverflow(page);
   await shot(page, 'heroes-auction', info.project.name);
 });

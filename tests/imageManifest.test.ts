@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import type { Card } from '../shared/types';
 import { FOOTBALLERS } from '../shared/data/football';
 import { HEROES } from '../shared/data/heroes';
+import { HERO_PORTRAITS } from '../shared/data/heroPortraits';
 import { auditCardImages, cardImageRecord, PROJECT_IMAGE_MANIFEST } from '../shared/imageManifest';
 import { getCatalog } from '../shared/catalog';
 import { PORTRAITS } from '../shared/data/portraits';
@@ -38,8 +39,21 @@ describe('central image manifest', () => {
     // Every credited file exists, and no photo ships without a credit.
     const credited = new Set(Object.values(PORTRAITS).map((p) => p.file));
     for (const f of fs.readdirSync('public/portraits')) expect(credited.has(f)).toBe(true);
-    // Heroes never use photos: there is no freely licensed artwork of those characters.
-    expect(auditCardImages(getCatalog('avengers'))).toMatchObject({ imported: 0, verified: 0 });
+    // Heroes never use character artwork: Marvel-inspired heroes may show a credited, freely licensed
+    // photo of the actor who plays them; the invented Original Heroes never have a photo.
+    const heroes = getCatalog('avengers');
+    const heroPhotos = heroes.filter((c) => c.image);
+    expect(heroPhotos.length).toBeGreaterThanOrEqual(50);
+    expect(auditCardImages(heroes)).toMatchObject({ verified: heroPhotos.length, missingAttribution: 0 });
+    expect(heroes.filter((c) => c.pack === 'original' && c.image)).toEqual([]);
+    for (const card of heroPhotos) {
+      expect(card.image).toMatch(/^\/hero-portraits\/[a-z0-9-]+\.(jpg|png|webp)$/);
+      expect(cardImageRecord(card)).toMatchObject({ kind: 'bundled-licensed', verified: true });
+      expect(cardImageRecord(card).license).toMatch(/^(CC|Public domain|PDM|No restrictions|Attribution$)/i);
+      expect(fs.existsSync(`public${card.image}`)).toBe(true);
+    }
+    const heroCredited = new Set(Object.values(HERO_PORTRAITS).map((p) => p.file));
+    for (const f of fs.readdirSync('public/hero-portraits')) expect(heroCredited.has(f)).toBe(true);
   });
 
   it('reports zero portrait coverage in the raw built-in tables (photos are attached by the catalog)', () => {

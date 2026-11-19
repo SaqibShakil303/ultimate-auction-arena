@@ -32,6 +32,7 @@ For development, `npm.cmd run dev` starts Vite on 5173 and the backend on 8787. 
 | `npm.cmd run data:fc27` | Re-read official FC 27 ratings from EA's ratings page into `shared/data/fc27.ts` |
 | `npm.cmd run data:icons` | Re-read every men's FC 27 Base Icon from FUT.GG into `shared/data/fc27Icons.ts` |
 | `npm.cmd run data:portraits` | Re-match licensed player photos and credits (`public/portraits`, `shared/data/portraits.ts`) |
+| `npm.cmd run data:hero-portraits` | Re-fetch licensed actor photos for hero cards (`public/hero-portraits`, `shared/data/heroPortraits.ts`) |
 
 Browser tests use installed Chrome on Windows. Set `PLAYWRIGHT_CHROME` to another Chromium executable, or install Playwright Chromium using `npx.cmd playwright install chromium`. Set `ARENA_URL` to test another running URL instead of the auto-started local bundle (the restart and split-hosting specs always start their own servers). No standalone lint task is configured.
 
@@ -87,7 +88,7 @@ Credits appear in each card's detail view and in **Photo credits & data sources*
 
 ### Hero art
 
-**Heroes use original emblem art, not character images.** No freely licensed artwork of Marvel characters exists, and studio artwork is not used. Each hero gets a distinct symbol for its powers on a class-coloured energy backdrop (`src/components/heroArt.tsx`). For a commercial release, license the characters or use the **Original Heroes** pack.
+**No character artwork is used.** No freely licensed artwork of Marvel characters exists, so **60 of the 64 Marvel-inspired heroes show a freely licensed photo of the actor who plays (or voices) them on film** — e.g. Thor → Chris Hemsworth, Thanos → Josh Brolin. `npm.cmd run data:hero-portraits` (`scripts/fetch-hero-portraits.ts`) takes a hand-checked hero → actor list, matches each actor on Wikidata, accepts only CC BY / BY-SA / CC0 / public-domain Commons photos, saves them to `public/hero-portraits/` and records author and licence in `shared/data/heroPortraits.ts`. Credits appear in each card's details and in **Photo credits & data sources**. The other heroes (no free photo, or no film actor such as Dormammu) and the invented **Original Heroes** keep original emblem art: a distinct symbol for each hero's powers on a class-coloured energy backdrop (`src/components/heroArt.tsx`). For a commercial release, license the characters or use the **Original Heroes** pack.
 
 Two original generated arena backgrounds are included. See the [image audit](docs/card-image-audit.csv) and [asset manifest](docs/asset-manifest.json).
 

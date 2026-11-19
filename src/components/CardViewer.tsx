@@ -3,7 +3,8 @@ import type { Card, MatchConfig, Sale } from '../../shared/types';
 import { basePrice, startersOf } from '../../shared/engine';
 import { cardImageRecord } from '../../shared/imageManifest';
 import { AFFINITIES, covers, footballWeights, norm, SYNERGY_RULES, THREAT_LABEL, AVENGERS_WEIGHTS } from '../../shared/scoring';
-import { formatINR, round1 } from '../../shared/util';
+import { formatINR, round1, slug } from '../../shared/util';
+import { HERO_PORTRAITS } from '../../shared/data/heroPortraits';
 import { GameCard, RARITY_COLOR, RARITY_LABEL, statKeys } from './GameCard';
 import { Bar, Chip, Modal } from './ui';
 import { Tooltip, TooltipContent, TooltipTrigger } from './shadcn/tooltip';
@@ -131,7 +132,7 @@ export function CardViewer({ card, cfg, cards, owner, price, sales = [], onClose
                 </li>
               )}
             </ul>
-            <p className="mt-2 text-[11px] text-muted">Artwork: {imageRecord.kind === 'generated-fallback' ? (card.kind === 'hero' ? 'original emblem art (no character likeness is used)' : 'generated placeholder — no freely licensed photo found') : imageRecord.verified ? <>Photo by {imageRecord.attribution}, <a className="underline" href={imageRecord.sourceUrl ?? undefined} target="_blank" rel="noreferrer">{imageRecord.license}</a>, via {imageRecord.source}</> : 'imported HTTPS image; license and attribution not verified'}. {card.kind === 'hero' ? `Character scores are custom game-balance values. Synergy list: ${SYNERGY_RULES.length} rules + affiliations.` : 'The active rating system is shown on the card and above.'}</p>
+            <p className="mt-2 text-[11px] text-muted">Artwork: {imageRecord.kind === 'generated-fallback' ? (card.kind === 'hero' ? 'original emblem art (no character likeness is used)' : 'generated placeholder — no freely licensed photo found') : imageRecord.verified ? <>Photo by {imageRecord.attribution}, <a className="underline" href={imageRecord.sourceUrl ?? undefined} target="_blank" rel="noreferrer">{imageRecord.license}</a>, via {imageRecord.source}</> : 'imported HTTPS image; license and attribution not verified'}. {card.kind === 'hero' && card.image && HERO_PORTRAITS[slug(card.name)] ? `The photo shows ${HERO_PORTRAITS[slug(card.name)].actor}, who ${HERO_PORTRAITS[slug(card.name)].role} ${card.name} in ${HERO_PORTRAITS[slug(card.name)].film}; no character artwork is used. ` : ''}{card.kind === 'hero' ? `Character scores are custom game-balance values. Synergy list: ${SYNERGY_RULES.length} rules + affiliations.` : 'The active rating system is shown on the card and above.'}</p>
           </div>
           {sales.some((s) => s.cardId === card.id) && <div className="rounded-xl border border-line p-3 text-sm"><h4 className="mb-2 font-display font-bold uppercase">Auction price history</h4>{sales.filter((s) => s.cardId === card.id).map((s) => <p key={s.round} className="text-slate-300">Round {s.round}{s.pass ? ' · re-auction' : ''} · {s.type === 'sold' ? `Sold for ${formatINR(s.price)}` : 'Unsold'} · {s.bidCount ? `${s.bidCount} bids` : 'No individual bid log'}</p>)}</div>}
         </div>

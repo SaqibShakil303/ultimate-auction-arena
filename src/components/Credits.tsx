@@ -3,6 +3,7 @@
 import { useMemo, useState } from 'react';
 import { Camera, ExternalLink, Search } from 'lucide-react';
 import { PORTRAITS, PORTRAITS_RETRIEVED } from '../../shared/data/portraits';
+import { HERO_PORTRAITS, HERO_PORTRAITS_RETRIEVED } from '../../shared/data/heroPortraits';
 import { FC27_RETRIEVED, FC27_SOURCE } from '../../shared/data/fc27';
 import { FC27_ICONS, FC27_ICONS_RETRIEVED, FC27_ICONS_SOURCE } from '../../shared/data/fc27Icons';
 import { getCatalog } from '../../shared/catalog';
@@ -15,7 +16,9 @@ export function CreditsButton({ className }: { className?: string }) {
   const rows = useMemo(() => {
     const names = new Map<string, string>();
     for (const c of getCatalog('football')) names.set(slug(c.name), c.name);
-    return Object.entries(PORTRAITS).map(([key, p]) => ({ name: names.get(key) ?? key, ...p })).sort((a, b) => a.name.localeCompare(b.name));
+    const players = Object.entries(PORTRAITS).map(([key, p]) => ({ name: names.get(key) ?? key, dir: 'portraits', ...p }));
+    const heroes = Object.values(HERO_PORTRAITS).map((p) => ({ name: `${p.hero} — ${p.actor}`, dir: 'hero-portraits', ...p }));
+    return [...players, ...heroes].sort((a, b) => a.name.localeCompare(b.name));
   }, []);
   const shown = rows.filter((r) => `${r.name} ${r.artist}`.toLowerCase().includes(q.toLowerCase()));
   return (
@@ -34,7 +37,7 @@ export function CreditsButton({ className }: { className?: string }) {
           </p>
           <p className="text-slate-300">
             <b>Photos.</b> {rows.length} player photos come from Wikimedia Commons under free licences, matched to each player through Wikidata
-            (retrieved {PORTRAITS_RETRIEVED}). Photos are cropped to fit the cards. Players without a free photo, and all heroes, use original artwork made for this game — no studio or publisher artwork is used.
+            (retrieved {PORTRAITS_RETRIEVED}). Photos are cropped to fit the cards. Marvel-inspired hero cards never use character artwork: {Object.keys(HERO_PORTRAITS).length} of them show a freely licensed Commons photo of the actor who plays that hero on film (retrieved {HERO_PORTRAITS_RETRIEVED}). Players and heroes without a free photo, and the invented Original Heroes, use original artwork made for this game — no studio or publisher artwork is used.
           </p>
           <div className="relative">
             <Search size={15} className="absolute left-3 top-3.5 text-muted" />
@@ -42,8 +45,8 @@ export function CreditsButton({ className }: { className?: string }) {
           </div>
           <ul className="grid max-h-[46vh] gap-1.5 overflow-y-auto pr-1 sm:grid-cols-2">
             {shown.map((r) => (
-              <li key={r.file} className="flex items-center gap-3 rounded-xl bg-white/[0.04] p-2">
-                <img src={`/portraits/${r.file}`} alt="" loading="lazy" className="h-12 w-10 flex-none rounded-lg object-cover object-top" />
+              <li key={`${r.dir}/${r.file}`} className="flex items-center gap-3 rounded-xl bg-white/[0.04] p-2">
+                <img src={`/${r.dir}/${r.file}`} alt="" loading="lazy" className="h-12 w-10 flex-none rounded-lg object-cover object-top" />
                 <div className="min-w-0 text-xs">
                   <div className="truncate font-semibold text-white">{r.name}</div>
                   <div className="truncate text-muted">Photo: {r.artist}</div>

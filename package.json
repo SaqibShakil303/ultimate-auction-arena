@@ -20,7 +20,8 @@
     "test:all": "npm run typecheck && npm test && npm run build && npm run test:browser",
     "data:fc27": "node scripts/fetch-fc27.mjs",
     "data:icons": "node scripts/fetch-fc27-icons.mjs",
-    "data:portraits": "tsx scripts/fetch-portraits.ts"
+    "data:portraits": "tsx scripts/fetch-portraits.ts",
+    "data:hero-portraits": "tsx scripts/fetch-hero-portraits.ts"
   },
   "dependencies": {
     "class-variance-authority": "^0.7.1",
