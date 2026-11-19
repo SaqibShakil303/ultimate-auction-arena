@@ -93,7 +93,7 @@ function assertSound(s: Saved) {
   expect(s.sales.filter((x) => x.type === 'sold').length).toBe(owned.size);
 }
 
-test('a full strict Football match ends by itself with two complete, legal XIs', async ({ page }, info) => {
+test('a full strict Football match ends by itself with two complete, legal squads (XI + 5 subs)', async ({ page }, info) => {
   test.setTimeout(300_000);
   const errors: string[] = [];
   page.on('pageerror', (e) => errors.push(e.message));
@@ -115,12 +115,23 @@ test('a full strict Football match ends by itself with two complete, legal XIs',
   expect(s.finishReason).toBe('Every squad is complete');
   assertSound(s);
   for (const p of s.participants) {
-    expect(p.squad).toHaveLength(11);
+    expect(p.squad).toHaveLength(16);
+    // Strict rules: every formation place is filled, the five extras are the bench, at most one substitute keeper.
+    let extra = 0;
     for (const line of ['GK', 'DEF', 'MID', 'ATT']) {
-      expect(p.squad.filter((o) => s.cards[o.cardId].line === line).length).toBe(s.config.slots[line]); // strict formation respected
+      const have = p.squad.filter((o) => s.cards[o.cardId].line === line).length;
+      expect(have).toBeGreaterThanOrEqual(s.config.slots[line]);
+      extra += have - s.config.slots[line];
     }
+    expect(extra).toBe(5);
+    expect(p.squad.filter((o) => s.cards[o.cardId].line === 'GK').length).toBeLessThanOrEqual(s.config.slots.GK + 1);
   }
   await expect(page.getByRole('tab', { name: 'Final lineups' })).toBeVisible({ timeout: 20_000 });
+  await page.getByRole('tab', { name: 'Final lineups' }).click();
+  const bench = page.getByRole('region', { name: 'Substitutes bench' }).first();
+  await expect(bench).toBeVisible();
+  await expect(bench.locator('[data-slot="bench"]')).toHaveCount(5);
+  await expect(bench).toContainText('5/5');
   await expect(page.getByText(/Incomplete squad/)).toHaveCount(0);
   await expect(page.getByText('Every squad is complete')).toBeVisible();
   await noOverflow(page);
@@ -178,8 +189,14 @@ test('setup validates names and budgets before a match can start', async ({ page
 
   // A custom budget rescales opening prices.
   await page.getByLabel('Custom budget').fill('750000');
-  // 5% of ₹7,50,000 spread over an 11-player squad (×10/11), rounded to the nearest ₹100.
-  await expect(page.getByText(/Opening prices scale with the budget/)).toContainText('₹34,100');
+  // 5% of ₹7,50,000 spread over a 16-player squad (×10/16), rounded to the nearest ₹100.
+  await expect(page.getByText(/Opening prices scale with the budget/)).toContainText('₹23,400');
+  // The bench is part of the squad size: 11 starters + 5 substitutes by default, adjustable.
+  await expect(page.getByText(/11 starters \+ 5 subs/).first()).toBeVisible();
+  await page.getByRole('button', { name: 'Decrease Substitutes' }).click();
+  await expect(page.getByText(/11 starters \+ 4 subs/).first()).toBeVisible();
+  await page.getByRole('button', { name: 'Increase Substitutes' }).click();
+  await expect(page.getByText(/11 starters \+ 5 subs/).first()).toBeVisible();
   await next(page);
   await next(page);
   await expect(page.getByText('₹7,50,000 each')).toBeVisible();

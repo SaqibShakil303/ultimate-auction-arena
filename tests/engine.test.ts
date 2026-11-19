@@ -410,7 +410,7 @@ describe('persistence and customisation', () => {
     const cat = applyCustom(getCatalog('football'), custom, 'football');
     const messi = cat.find((c) => c.id === 'f-lionel-messi')!;
     expect(messi.overall).toBe(80);
-    expect(messi.rarity).toBe('common');
+    expect(messi.rarity).toBe('epic'); // football tiers: below 85 is Epic (every footballer is a Gold card)
     const added = cat.find((c) => c.name === 'Local Hero') as FootballCard;
     expect(added.overall).toBe(99);
     expect(added.line).toBe('ATT');

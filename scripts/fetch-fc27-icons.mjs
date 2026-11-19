@@ -1,0 +1,114 @@
+// Reads every EA SPORTS FC 27 Base Icon card from FUT.GG and writes shared/data/fc27Icons.ts.
+//
+//   node scripts/fetch-fc27-icons.mjs
+//
+// Why FUT.GG: EA's own ratings page covers standard player items only and publishes no Icon
+// ratings. FUT.GG lists the in-game Base Icon items (overall, face stats, positions, PlayStyles)
+// on public pages that its robots.txt allows. Each row keeps a link to its FUT.GG page so the
+// numbers can be checked, and the game labels them "in-game data via FUT.GG", never "EA published".
+//
+// Only men's Base Icons are kept, to match the men's FC 27 player set. One card per Icon.
+
+import fs from 'node:fs';
+
+const BASE = 'https://www.fut.gg/rarities/base-icon/';
+const UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130 Safari/537.36';
+const LINE = { GK: 'GK', CB: 'DEF', LB: 'DEF', RB: 'DEF', LWB: 'DEF', RWB: 'DEF', CDM: 'MID', CM: 'MID', CAM: 'MID', LM: 'MID', RM: 'MID', ST: 'ATT', CF: 'ATT', LW: 'ATT', RW: 'ATT' };
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+
+async function page(n) {
+  for (let i = 0; i < 4; i++) {
+    try {
+      const res = await fetch(`${BASE}?page=${n}`, { headers: { 'user-agent': UA, 'accept-language': 'en' }, signal: AbortSignal.timeout(45_000) });
+      if (res.ok) return res.text();
+      if (res.status === 404) return ''; // past the last page
+      await sleep(3000 * (i + 1));
+    } catch { await sleep(3000 * (i + 1)); }
+  }
+  throw new Error(`FUT.GG page ${n} kept failing`);
+}
+
+/** Each card is serialised as one object literal; read the fields we need from a window after its key. */
+function cards(html) {
+  const out = [];
+  const starts = [...html.matchAll(/eaId:(\d+),overall:(\d+),commonName:("[^"]*"|null),cardName:"([^"]*)",rarityName:"([^"]*)"/g)];
+  starts.forEach((m, k) => {
+    const end = k + 1 < starts.length ? starts[k + 1].index : m.index + 12000;
+    const t = html.slice(m.index, Math.min(end, m.index + 12000));
+    const pick = (re) => (t.match(re) || [])[1];
+    const face = pick(/faceStatsV2:(?:\$R\[\d+\]=)?\{([^}]*)\}/) || '';
+    const f = Object.fromEntries([...face.matchAll(/(\w+):(\d+)/g)].map((x) => [x[1], +x[2]]));
+    const list = (re) => {
+      const raw = pick(re);
+      return raw ? [...raw.matchAll(/"([^"]*)"/g)].map((x) => x[1]) : [];
+    };
+    out.push({
+      eaId: +m[1], overall: +m[2], rarity: m[5], cardName: m[4],
+      common: m[3] === 'null' ? null : m[3].slice(1, -1),
+      game: pick(/game:"(\d+)"/), gender: pick(/gender:(\d)/),
+      first: pick(/firstName:"([^"]*)"/), last: pick(/lastName:"([^"]*)"/), nick: pick(/nickname:"([^"]*)"/) ?? null,
+      basePlayer: +(pick(/basePlayerEaId:(\d+)/) || 0),
+      pos: pick(/position:"([A-Z]+)"/), alt: list(/alternativePositions:(?:\$R\[\d+\]=)?\[([^\]]*)\]/),
+      nation: pick(/nation:(?:\$R\[\d+\]=)?\{[^}]*?name:"([^"]*)"/),
+      birth: pick(/birthDate:(\d{8})/), quality: pick(/quality:"([A-Z]+)"/),
+      url: pick(/url:"(\/players\/[^"]*)"/), f,
+    });
+  });
+  return out;
+}
+
+const all = new Map();
+for (let n = 1; n <= 20; n++) {
+  const found = cards(await page(n)).filter((c) => c.game === '27' && c.rarity === 'Base Icon');
+  const before = all.size;
+  for (const c of found) if (!all.has(c.eaId)) all.set(c.eaId, c);
+  console.log(`page ${n}: ${found.length} Base Icon cards, ${all.size} total`);
+  if (found.length < 30 || all.size === before) break; // a short page is the last one
+  await sleep(1500);
+}
+
+const rows = [];
+const skipped = [];
+const seenPlayer = new Set();
+for (const c of [...all.values()].sort((a, b) => b.overall - a.overall || a.eaId - b.eaId)) {
+  const gk = c.pos === 'GK';
+  const stats = gk
+    ? [c.f.gkFaceDiving, c.f.gkFaceHandling, c.f.gkFaceKicking, c.f.gkFaceReflexes, c.f.gkFaceSpeed, c.f.gkFacePositioning]
+    : [c.f.facePace, c.f.faceShooting, c.f.facePassing, c.f.faceDribbling, c.f.faceDefending, c.f.facePhysicality];
+  const name = (c.nick || c.common || `${c.first ?? ''} ${c.last ?? ''}`).trim();
+  const why = c.gender !== '1' ? 'women\'s Icon' : !LINE[c.pos] ? `unknown position ${c.pos}` : stats.some((v) => !Number.isInteger(v) || v < 1 || v > 99) ? 'incomplete stats'
+    : !c.nation ? 'no nation' : seenPlayer.has(c.basePlayer || c.eaId) ? 'second card of the same Icon' : null;
+  if (why) { skipped.push(`${name} (${c.overall}): ${why}`); continue; }
+  seenPlayer.add(c.basePlayer || c.eaId);
+  const born = c.birth ? `${c.birth.slice(0, 4)}-${c.birth.slice(4, 6)}-${c.birth.slice(6, 8)}` : '';
+  rows.push({
+    id: c.eaId, name, full: `${c.first ?? ''} ${c.last ?? ''}`.trim(), pos: c.pos,
+    alt: c.alt.filter((a) => LINE[a] && a !== c.pos), nation: c.nation, overall: c.overall, stats, born,
+    url: `https://www.fut.gg${c.url}`,
+  });
+}
+
+const today = new Date().toISOString().slice(0, 10);
+fs.writeFileSync(new URL('../shared/data/fc27Icons.ts', import.meta.url), `// GENERATED by scripts/fetch-fc27-icons.mjs — do not edit by hand.
+// EA SPORTS FC 27 Base Icon items (men), as listed in FUT.GG's database of in-game items:
+//   ${BASE}
+// Retrieved ${today}. ${rows.length} Icons, one card each. EA publishes no Icon ratings page, so these
+// in-game values are credited to FUT.GG and each row links to its FUT.GG page.
+// Goalkeeper stat order is DIV HAN KIC REF SPD POS; outfield is PAC SHO PAS DRI DEF PHY.
+
+export const FC27_ICONS_SOURCE = '${BASE}';
+export const FC27_ICONS_RETRIEVED = '${today}';
+
+export interface Fc27IconRow {
+  id: number; name: string; full: string; pos: string; alt: string[]; nation: string;
+  overall: number; stats: number[]; born: string; url: string;
+}
+
+export const FC27_ICONS: Fc27IconRow[] = [
+${rows.map((r) => `  ${JSON.stringify(r)},`).join('\n')}
+];
+`);
+console.log(`\nWrote ${rows.length} Icons to shared/data/fc27Icons.ts (${today}).`);
+const byLine = rows.reduce((a, r) => ((a[LINE[r.pos]] = (a[LINE[r.pos]] || 0) + 1), a), {});
+console.log('by line', JSON.stringify(byLine), '| overall range', Math.min(...rows.map((r) => r.overall)), '-', Math.max(...rows.map((r) => r.overall)));
+console.log(`Skipped ${skipped.length}:`, skipped.slice(0, 40).join('; '));

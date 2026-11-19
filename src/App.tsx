@@ -16,7 +16,7 @@ const Auction = lazy(() => import('./screens/Auction').then((m) => ({ default: m
 const Results = lazy(() => import('./screens/Results').then((m) => ({ default: m.Results })));
 const Setup = lazy(() => import('./screens/Setup').then((m) => ({ default: m.Setup })));
 
-const DRAFT_KEY = 'uaa.draft.v2'; // v2: Football now starts on official FC 27 ratings
+const DRAFT_KEY = 'uaa.draft.v3'; // v3: Football starts on FC 27 Gold players + Icons with a 5-man bench
 function loadDraft(): Draft {
   try {
     const d = JSON.parse(localStorage.getItem(DRAFT_KEY) || 'null') as Draft | null;
@@ -60,8 +60,8 @@ function Home({ onNew, onDemo, onJoin, resume, onResume, onDiscard, saved, onRej
             <span className="arena-card-copy">
               <span className="arena-kicker"><span>01</span> Stadium draft</span>
               <span className="arena-mode-title">Football <b>Arena</b></span>
-              <span className="arena-mode-desc">Command an 11-player dream squad with real formations, tactical balance, and legendary auction drama.</span>
-              <span className="arena-card-meta"><span>11v11 squads</span><span>130+ cards</span><span>Live bidding</span></span>
+              <span className="arena-mode-desc">Build a starting XI and a 5-man bench from FC 27 Gold players and every Icon, with real formations and legendary auction drama.</span>
+              <span className="arena-card-meta"><span>XI + 5 subs</span><span>379 Gold &amp; Icon cards</span><span>Live bidding</span></span>
               <span className="arena-card-cta">Enter Football Auction <ArrowRight size={18} /></span>
             </span>
           </button>
@@ -123,7 +123,7 @@ function Home({ onNew, onDemo, onJoin, resume, onResume, onDiscard, saved, onRej
 
         <Showcase />
       </main>
-      <footer className="mx-auto mt-5 max-w-5xl text-center text-[11px] leading-relaxed text-muted"><Sparkles size={11} className="mr-1 inline" />Fan-made party game. Football cards marked FC 27 use official EA SPORTS FC 27 base ratings; legends and heroes use this game’s own clearly labelled custom values. Player photos are freely licensed from Wikimedia Commons; hero art is original. Not affiliated with any league, club, publisher or studio. <CreditsButton /></footer>
+      <footer className="mx-auto mt-5 max-w-5xl text-center text-[11px] leading-relaxed text-muted"><Sparkles size={11} className="mr-1 inline" />Fan-made party game. Football cards marked FC 27 use official EA SPORTS FC 27 base ratings (Gold players) and in-game FC 27 Icon values listed by FUT.GG; Prime legends and heroes use this game’s own clearly labelled custom values. Player photos are freely licensed from Wikimedia Commons; hero art is original. Not affiliated with any league, club, publisher or studio. <CreditsButton /></footer>
     </div>
   );
 }

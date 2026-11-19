@@ -4,7 +4,7 @@
 // "club" is the club each player is most associated with in this game's chemistry system.
 
 import type { FootballCard, Line } from '../types';
-import { rarityOf, slug } from '../util';
+import { footballRarity, slug } from '../util';
 
 // [name, position, alt positions, nation, club, era, overall, six stats, trait, career clue]
 // Outfield stats: PAC SHO PAS DRI DEF PHY · Goalkeeper stats: DIV HAN KIC REF SPD POS
@@ -218,7 +218,7 @@ function build(r: Row): FootballCard {
   const order = stats.map((v, i) => ({ v, i })).sort((a, b) => b.v - a.v);
   const style = isGk ? (stats[2] >= 86 ? 'Ball-Playing Keeper' : stats[3] >= 92 ? 'Reflex Shot-Stopper' : 'Commanding Keeper') : `${STYLE_A[order[0].i]} ${STYLE_N[order[1].i]}`;
   return {
-    kind: 'football', id: 'f-' + slug(name), name, overall, rarity: rarityOf(overall), stats, trait,
+    kind: 'football', id: 'f-' + slug(name), name, overall, rarity: footballRarity(overall, era === 'L'), stats, trait,
     line, pos, alt: alts, altLines: [...new Set(alts.map((a) => LINE_OF[a]).filter((l) => l && l !== line))],
     role: roleOf(pos, stats), style, nation, club, era: era === 'L' ? 'Legend' : 'Modern',
     pack: era === 'L' ? 'legends' : 'modern',

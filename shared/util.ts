@@ -66,6 +66,19 @@ export function rarityOf(overall: number): Rarity {
   return 'common';
 }
 
+/** Gold cards start at 75 overall, as in EA SPORTS FC (Silver is 65–74, Bronze below 65). */
+export const GOLD_MIN = 75;
+/** Football tiers start at 85 for Legendary. */
+export const LEGENDARY_MIN = 85;
+/**
+ * Football card tier. Every footballer in the game is a Gold card, so there are three tiers:
+ * Icons and all-time Legends are Mythic, 85+ is Legendary and 75–84 is Epic.
+ */
+export function footballRarity(overall: number, legend: boolean): Rarity {
+  if (legend) return 'mythic';
+  return overall >= LEGENDARY_MIN ? 'legendary' : 'epic';
+}
+
 export function slug(s: string): string {
   return s
     .normalize('NFD')

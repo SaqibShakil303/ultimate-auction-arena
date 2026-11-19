@@ -4,6 +4,7 @@ import { useMemo, useState } from 'react';
 import { Camera, ExternalLink, Search } from 'lucide-react';
 import { PORTRAITS, PORTRAITS_RETRIEVED } from '../../shared/data/portraits';
 import { FC27_RETRIEVED, FC27_SOURCE } from '../../shared/data/fc27';
+import { FC27_ICONS, FC27_ICONS_RETRIEVED, FC27_ICONS_SOURCE } from '../../shared/data/fc27Icons';
 import { getCatalog } from '../../shared/catalog';
 import { slug } from '../../shared/util';
 import { cx, inputCls, Modal } from './ui';
@@ -27,7 +28,9 @@ export function CreditsButton({ className }: { className?: string }) {
           <p className="text-slate-300">
             <b>Ratings.</b> Football cards marked “FC 27 ✓” use official EA SPORTS FC 27 base ratings read from{' '}
             <a className="text-accent underline" href={FC27_SOURCE} target="_blank" rel="noreferrer">EA’s public ratings page</a> on {FC27_RETRIEVED}; each card links to its own EA page.
-            Legends are this game’s own custom ratings (EA publishes no Icon ratings) and say “Custom” on every card. Hero powers are custom game values.
+            Only Gold cards (75+ overall) are included. EA publishes no Icon ratings page, so the {FC27_ICONS.length} men’s FC 27 Icons (“FC 27 Icon ✓”) use their in-game
+            Base Icon values as listed in{' '}<a className="text-accent underline" href={FC27_ICONS_SOURCE} target="_blank" rel="noreferrer">FUT.GG’s item database</a> on {FC27_ICONS_RETRIEVED}; each Icon links to its FUT.GG page.
+            The optional Prime Legends mode uses this game’s own custom ratings and says “Custom” on every card. Hero powers are custom game values.
           </p>
           <p className="text-slate-300">
             <b>Photos.</b> {rows.length} player photos come from Wikimedia Commons under free licences, matched to each player through Wikidata

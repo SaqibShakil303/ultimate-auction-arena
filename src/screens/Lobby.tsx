@@ -1,9 +1,8 @@
 import { useState } from 'react';
 import { Check, Copy, Crown, Link2, LogOut, Play, Settings, Share2, UserX, WifiOff } from 'lucide-react';
-import { LINES } from '../../shared/types';
 import { formatINR } from '../../shared/util';
 import type { Controller, Snap } from '../lib/controller';
-import { PLAYER_COLORS } from '../lib/draft';
+import { PLAYER_COLORS, squadSummary } from '../lib/draft';
 import { Btn, Chip, cx, Logo, Toast } from '../components/ui';
 
 export function LobbySkeleton({ text, onCancel }: { text: string; onCancel?: () => void }) {
@@ -88,7 +87,7 @@ export function Lobby({ snap, ctl, onLeave, onEdit }: { snap: Snap; ctl: Control
             <dl className="space-y-1.5 text-sm">
               {([
                 ['Budget', `${formatINR(cfg.budget)} each`],
-                ['Squad', football ? `${cfg.squadSize} · ${LINES.map((l) => `${cfg.slots[l]} ${l}`).join(' / ')}` : `${cfg.squadSize} heroes`],
+                ['Squad', squadSummary(cfg)],
                 ['Rules', `${cfg.rules === 'strict' ? 'Strict' : 'Casual'} · ${cfg.auctionType === 'mystery' ? 'Mystery' : 'Classic'}`],
                 ['Timer', `${cfg.timerSec}s · +${cfg.antiSnipeSec}s anti-snipe`],
                 ['Increment', formatINR(cfg.increment)],

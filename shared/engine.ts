@@ -39,13 +39,43 @@ export const FORMATION_ROWS: Record<FormationName, string[][]> = {
   '3-5-2': [['GK'], ['CB', 'CB', 'CB'], ['LM', 'CDM', 'CM', 'CAM', 'RM'], ['ST', 'ST']],
   '5-3-2': [['GK'], ['LWB', 'CB', 'CB', 'CB', 'RWB'], ['CM', 'CDM', 'CM'], ['ST', 'ST']],
 };
+/** Starting places in a football formation (the XI); for heroes the whole team. */
+export function startersOf(cfg: MatchConfig): number {
+  return cfg.mode === 'football' ? LINES.reduce((a, l) => a + (cfg.slots[l] || 0), 0) : cfg.squadSize;
+}
+/** Football substitutes: squad places beyond the starting formation. */
+export function subsOf(cfg: MatchConfig): number {
+  return cfg.mode === 'football' ? Math.max(0, cfg.squadSize - startersOf(cfg)) : 0;
+}
+export const MAX_SUBS = 7;
+/** At most this many goalkeepers may sit on the bench under Strict rules. */
+export const MAX_BENCH_GK = 1;
+
+/**
+ * Strict roster check for a football squad: each line fills its starting places first; anything
+ * beyond goes to the bench, which holds subsOf(cfg) players and at most one extra goalkeeper.
+ * Returns why the counts do not fit, or null when they do.
+ */
+export function benchProblem(counts: Record<Line, number>, cfg: MatchConfig): string | null {
+  const subs = subsOf(cfg);
+  const extra = LINES.reduce((a, l) => a + Math.max(0, counts[l] - (cfg.slots[l] || 0)), 0);
+  if (extra > subs) return subs ? `Bench full (${subs}/${subs} substitutes)` : 'No bench in this format';
+  if (counts.GK - (cfg.slots.GK || 0) > MAX_BENCH_GK) return `Only ${MAX_BENCH_GK} substitute goalkeeper allowed`;
+  return null;
+}
+export function lineCounts(ids: string[], cards: Record<string, Card>): Record<Line, number> {
+  const counts: Record<Line, number> = { GK: 0, DEF: 0, MID: 0, ATT: 0 };
+  for (const id of ids) { const c = cards[id]; if (c?.kind === 'football') counts[c.line]++; }
+  return counts;
+}
+
 /** Tactical settings can vary per team; auction-wide budgets and squad limits never change. */
 export function teamConfig(p: Participant, cfg: MatchConfig): MatchConfig {
-  return cfg.mode === 'football' && cfg.squadSize === 11 && p.formation && FORMATIONS.includes(p.formation)
+  return cfg.mode === 'football' && startersOf(cfg) === 11 && p.formation && FORMATIONS.includes(p.formation)
     ? { ...cfg, formation: p.formation, slots: slotsForFormation(p.formation) } : cfg;
 }
 export function positionRows(cfg: MatchConfig): string[][] {
-  if (cfg.formation && cfg.squadSize === 11 && LINES.every((l) => cfg.slots[l] === FORMATION_SLOTS[cfg.formation!][l])) {
+  if (cfg.formation && startersOf(cfg) === 11 && LINES.every((l) => cfg.slots[l] === FORMATION_SLOTS[cfg.formation!][l])) {
     return FORMATION_ROWS[cfg.formation];
   }
   return LINES.map((l) => Array<string>(cfg.slots[l] || 0).fill(l)).filter((row) => row.length);
@@ -99,21 +129,13 @@ export function defaultConfig(mode: Mode, budget = 1_000_000): MatchConfig {
 
 // ───────────────────────── pool + setup validation ─────────────────────────
 
-/**
- * EA publishes no Icon ratings, so all-time greats only exist here as clearly labelled custom
- * cards. In an official-ratings match they may join as guests when the host enables the
- * Legends pack; they keep their "custom" label on every card and never count as official data.
- */
-const legendGuest = (c: FootballCard, ratingMode: string): boolean =>
-  ratingMode !== 'prime' && (c.ratingMode ?? 'prime') === 'prime' && c.pack === 'legends' && c.id.startsWith('f-');
-
 export function buildPool(catalog: Card[], cfg: MatchConfig): Card[] {
   const kind = cfg.mode === 'football' ? 'football' : 'hero';
   const ratingMode = cfg.ratingMode ?? 'prime'; // backward-compatible with pre-V2 saved settings
   const pool = catalog.filter(
     (c) => c.kind === kind
-      && (c.kind !== 'football' || (c.ratingMode ?? 'prime') === ratingMode || legendGuest(c, ratingMode))
-      && (c.kind !== 'football' || ratingMode === 'prime' || legendGuest(c, ratingMode) || (c.verificationStatus === 'verified' && c.overall > 0 && c.stats.length === 6 && c.stats.every((v) => v > 0)))
+      && (c.kind !== 'football' || (c.ratingMode ?? 'prime') === ratingMode)
+      && (c.kind !== 'football' || ratingMode === 'prime' || (c.verificationStatus === 'verified' && c.overall > 0 && c.stats.length === 6 && c.stats.every((v) => v > 0)))
       && (c.pack === 'custom' || cfg.packs.includes(c.pack))
       && !cfg.excluded.includes(c.id),
   );
@@ -136,7 +158,7 @@ export function validateSetup(cfg: MatchConfig, names: string[], pool: Card[]): 
   if (new Set(clean).size !== clean.length) errors.push('Participant names must be unique.');
   if (!(cfg.budget >= 1000)) errors.push('Starting budget must be at least ₹1,000.');
   if (!(cfg.increment >= 1)) errors.push('Minimum bid increment must be positive.');
-  if (cfg.squadSize < 1 || cfg.squadSize > 15) errors.push('Squad size must be between 1 and 15.');
+  if (cfg.squadSize < 1 || cfg.squadSize > 20) errors.push('Squad size must be between 1 and 20.');
   if (pool.length === 0) errors.push(cfg.mode === 'football' && cfg.ratingMode !== 'prime'
     ? 'The official card pool is empty. Import complete, host-verified EA ratings with source references, or select Prime Legends.'
     : 'The card pool is empty — enable at least one card pack.');
@@ -144,7 +166,9 @@ export function validateSetup(cfg: MatchConfig, names: string[], pool: Card[]): 
 
   if (cfg.mode === 'football') {
     const total = LINES.reduce((a, l) => a + (cfg.slots[l] || 0), 0);
-    if (total !== cfg.squadSize) errors.push(`Formation slots add up to ${total}, but the squad size is ${cfg.squadSize}.`);
+    if (total < 1 || total > 15) errors.push(`A formation needs between 1 and 15 starting places (it has ${total}).`);
+    else if (total > cfg.squadSize) errors.push(`Formation slots add up to ${total}, but the squad size is only ${cfg.squadSize}.`);
+    else if (cfg.squadSize - total > MAX_SUBS) errors.push(`At most ${MAX_SUBS} substitutes are allowed (this squad has ${cfg.squadSize - total}).`);
     if (cfg.rules === 'strict') {
       for (const l of LINES) {
         const have = pool.filter((c) => (c as FootballCard).line === l).length;
@@ -190,7 +214,11 @@ export function fitOf(card: FootballCard, position: string): number {
   return 0.72;
 }
 
-/** Maximum total OVR × position fit across the entire XI; independent of purchase prices. */
+/**
+ * Best starting XI by total OVR × position fit, chosen from the whole squad; everyone else goes to
+ * the bench (strongest first). Independent of purchase prices. The lineup array holds the starting
+ * slots first, then one entry per substitute place.
+ */
 export function autoLineup(ids: string[], cfg: MatchConfig, cards: Record<string, Card>): (string | null)[] {
   if (cfg.mode !== 'football') {
     const out: (string | null)[] = ids.slice(0, cfg.squadSize);
@@ -198,44 +226,55 @@ export function autoLineup(ids: string[], cfg: MatchConfig, cards: Record<string
     return out;
   }
   const lines = slotPositions(cfg);
-  const out: (string | null)[] = lines.map(() => null);
-  const owned = [...new Set(ids)].filter((id) => cards[id]?.kind === 'football').slice(0, lines.length);
+  const benchSize = subsOf(cfg);
+  const out: (string | null)[] = Array(lines.length + benchSize).fill(null);
+  const owned = [...new Set(ids)].filter((id) => cards[id]?.kind === 'football').slice(0, lines.length + benchSize);
   if (!owned.length) return out;
-  // At most 15 slots: a bitmask dynamic program visits <= 32,768 assignments of slots.
-  // Greedy placement can strand a specialist behind a versatile player's secondary role.
-  const count = 1 << lines.length;
-  const best = new Float64Array(count).fill(-Infinity);
-  const population = new Uint8Array(count);
-  const chosen = new Int8Array(count).fill(-1);
+  // Dynamic program over (player, filled-slot mask): each player either takes a free slot or sits
+  // on the bench. At most 15 slots and 22 players keeps this to a few million cheap steps, and it
+  // never strands a specialist behind a versatile player the way greedy placement can.
+  const S = lines.length;
+  const width = 1 << S;
+  const P = owned.length;
+  const best = new Float64Array((P + 1) * width).fill(-Infinity);
+  const move = new Int8Array((P + 1) * width).fill(-2); // -1 = benched, >= 0 = slot taken
   const values = owned.map((id) => lines.map((position) => {
     const c = cards[id] as FootballCard;
     const fit = fitOf(c, position);
     return c.overall * fit + (fit === 1 ? 0.5 : 0);
   }));
   best[0] = 0;
-  let finalMask = 0;
-  for (let mask = 0; mask < count; mask++) {
-    if (mask) population[mask] = population[mask >> 1] + (mask & 1);
-    const player = population[mask];
-    if (player === owned.length) {
-      if (best[mask] > best[finalMask]) finalMask = mask;
-      continue;
-    }
-    if (player > owned.length || !Number.isFinite(best[mask])) continue;
-    for (let slot = 0; slot < lines.length; slot++) {
-      if (mask & (1 << slot)) continue;
-      const next = mask | (1 << slot);
-      const value = best[mask] + values[player][slot];
-      if (value > best[next] + 1e-9) { best[next] = value; chosen[next] = slot; }
+  for (let k = 0; k < P; k++) {
+    const benchedSoFar = (mask: number) => k - popcount(mask);
+    for (let mask = 0; mask < width; mask++) {
+      const here = best[k * width + mask];
+      if (!Number.isFinite(here)) continue;
+      const row = (k + 1) * width;
+      if (benchedSoFar(mask) < benchSize && here > best[row + mask] + 1e-9) { best[row + mask] = here; move[row + mask] = -1; }
+      for (let slot = 0; slot < S; slot++) {
+        if (mask & (1 << slot)) continue;
+        const next = mask | (1 << slot);
+        const value = here + values[k][slot];
+        if (value > best[row + next] + 1e-9) { best[row + next] = value; move[row + next] = slot; }
+      }
     }
   }
-  for (let player = owned.length - 1; player >= 0; player--) {
-    const slot = chosen[finalMask];
-    if (slot < 0) break;
-    out[slot] = owned[player];
-    finalMask &= ~(1 << slot);
+  let mask = 0;
+  for (let m = 0; m < width; m++) if (best[P * width + m] > best[P * width + mask]) mask = m;
+  const benched: string[] = [];
+  for (let k = P; k > 0; k--) {
+    const slot = move[k * width + mask];
+    if (slot === -1) benched.push(owned[k - 1]);
+    else if (slot >= 0) { out[slot] = owned[k - 1]; mask &= ~(1 << slot); }
   }
+  benched.sort((a, b) => (cards[b] as FootballCard).overall - (cards[a] as FootballCard).overall || a.localeCompare(b));
+  benched.forEach((id, i) => { out[S + i] = id; });
   return out;
+}
+function popcount(x: number): number {
+  let n = 0;
+  while (x) { x &= x - 1; n++; }
+  return n;
 }
 
 export function lineupValid(p: Participant, lineup: (string | null)[], cfg: MatchConfig): boolean {
@@ -258,9 +297,11 @@ function placeNew(p: Participant, cfg: MatchConfig, cards: Record<string, Card>)
     p.lineup = autoLineup(ids, cfg, cards);
     return;
   }
-  // Manual lineups are respected: the new card takes its best empty slot.
+  // Manual lineups are respected: the new card takes its best empty starting slot, or a bench place
+  // when every open starting slot would put it out of position.
   const lines = slotPositions(cfg);
-  const lineup = p.lineup.slice();
+  const BENCH_PREFERENCE = 0.85;
+  const lineup = p.lineup.slice(0, cfg.squadSize);
   while (lineup.length < cfg.squadSize) lineup.push(null);
   const fresh = ids.filter((id) => !lineup.includes(id));
   for (const id of fresh) {
@@ -268,7 +309,7 @@ function placeNew(p: Participant, cfg: MatchConfig, cards: Record<string, Card>)
     let best = -1;
     let bestFit = -1;
     lineup.forEach((cur, i) => {
-      const fit = c.kind === 'football' ? fitOf(c, lines[i]) : 1;
+      const fit = c.kind !== 'football' ? 1 : i < lines.length ? fitOf(c, lines[i]) : BENCH_PREFERENCE;
       if (cur === null && fit > bestFit) { best = i; bestFit = fit; }
     });
     if (best >= 0) lineup[best] = id;
@@ -281,9 +322,12 @@ export function slotBlock(p: Participant, card: Card, cfg: MatchConfig, cards: R
   cfg = teamConfig(p, cfg);
   if (cfg.rules !== 'strict') return null;
   if (card.kind === 'football') {
-    const have = p.squad.filter((o) => (cards[o.cardId] as FootballCard)?.line === card.line).length;
+    const counts = lineCounts(p.squad.map((o) => o.cardId), cards);
     const cap = cfg.slots[card.line] || 0;
-    if (have >= cap) return `No open ${card.line} slot (${have}/${cap} filled)`;
+    if (counts[card.line] < cap) return null;
+    counts[card.line]++;
+    const problem = benchProblem(counts, cfg);
+    if (problem) return subsOf(cfg) ? `${card.line} places full (${cap}/${cap}) · ${problem}` : `No open ${card.line} slot (${counts[card.line] - 1}/${cap} filled)`;
   } else {
     const have = p.squad.filter((o) => (cards[o.cardId] as HeroCard)?.cls === card.cls).length;
     if (have >= cfg.maxPerClass) return `${card.cls} limit reached (${have}/${cfg.maxPerClass})`;
@@ -545,10 +589,10 @@ function apply(s: MatchState, a: Action, now: number): ActResult {
     case 'formation': {
       const p = s.participants.find((x) => x.id === a.pid);
       if (!p) return fail('unknown', 'Not a participant in this match');
-      if (s.config.mode !== 'football' || s.config.squadSize !== 11 || !FORMATIONS.includes(a.formation)) return fail('invalid', 'Choose a supported 11-player formation');
+      if (s.config.mode !== 'football' || startersOf(s.config) !== 11 || !FORMATIONS.includes(a.formation)) return fail('invalid', 'Choose a supported 11-player formation');
       const next = { ...s.config, formation: a.formation, slots: slotsForFormation(a.formation) };
-      if (s.config.rules === 'strict' && LINES.some((l) => p.squad.filter((o) => (s.cards[o.cardId] as FootballCard).line === l).length > next.slots[l])) {
-        return fail('slot', 'Your current squad exceeds a line limit in this formation. Use Casual rules for unrestricted tactics.');
+      if (s.config.rules === 'strict' && benchProblem(lineCounts(p.squad.map((o) => o.cardId), s.cards), next)) {
+        return fail('slot', 'Your current squad does not fit this formation and bench. Use Casual rules for unrestricted tactics.');
       }
       p.formation = a.formation;
       p.manual = false;

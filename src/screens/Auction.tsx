@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { Check, ChevronDown, ChevronUp, Copy, Crown, Gavel, Hammer, HelpCircle, LayoutGrid, Lock, LogOut, Music, Pause, Play, Search, Settings, SkipForward, User, Volume2, VolumeX, WifiOff } from 'lucide-react';
 import type { Card, Participant, PublicMatch } from '../../shared/types';
-import { checkBid, CLUE_STAGES, CLUE_STEP_MS, GUESS_BONUS, quickSteps } from '../../shared/engine';
+import { checkBid, CLUE_STAGES, CLUE_STEP_MS, GUESS_BONUS, quickSteps, subsOf } from '../../shared/engine';
 import { scoreTeam } from '../../shared/scoring';
 import { compactINR, formatINR, uid } from '../../shared/util';
 import type { Controller, Snap } from '../lib/controller';
@@ -523,7 +523,7 @@ function HostPanel({ x, onClose, muted, toggleMute }: { x: Ctx; onClose: () => v
           <Btn variant="soft" disabled={muted} onClick={() => { if (music) stopMusic(); else startMusic(); setMusic(!music); }}><Music size={15} /> Music {music ? 'on' : 'off'}</Btn>
         </div>
         <div className="rounded-xl border border-line bg-black/20 p-3 text-xs text-muted">
-          <b className="text-slate-200">Locked for this match:</b> {formatINR(cfg.budget)} budget · {cfg.squadSize}-card squads · {cfg.rules} rules · {cfg.timerSec}s timer · +{formatINR(cfg.increment)} increment · {cfg.auctionType} auction.
+          <b className="text-slate-200">Locked for this match:</b> {formatINR(cfg.budget)} budget · {cfg.squadSize}-card squads{subsOf(cfg) ? ` (${subsOf(cfg)} subs)` : ''} · {cfg.rules} rules · {cfg.timerSec}s timer · +{formatINR(cfg.increment)} increment · {cfg.auctionType} auction.
           Auction rules and rating data are locked. Arrange your own squad during play; the final championship locks when the auction ends.
         </div>
         <div>

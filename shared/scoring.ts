@@ -3,7 +3,7 @@
 
 import type { Card, FootballCard, HeroCard, HeroClass, Line, MatchConfig, Participant, Sale, Threat } from './types';
 import { HERO_CLASSES, LINES, THREATS } from './types';
-import { effectiveLineup, fitOf, GUESS_BONUS, GUESS_CAP, slotLines, slotPositions, teamConfig } from './engine';
+import { effectiveLineup, fitOf, GUESS_BONUS, GUESS_CAP, slotLines, slotPositions, subsOf, teamConfig } from './engine';
 import { avg, clamp, compactINR, mulberry32, round1, round2 } from './util';
 
 export interface ScorePart { key: string; label: string; weight: number; score: number; lines: string[] }
@@ -30,6 +30,19 @@ export interface TeamScore {
 export const norm = (x: number) => clamp((x - 70) / 26, 0, 1) * 100;
 
 export const FOOTBALL_WEIGHTS = { quality: 0.4, balance: 0.2, tactics: 0.15, coverage: 0.15, chemistry: 0.1 };
+/**
+ * With substitutes, the starting XI keeps 90% of the score (each XI part scaled by 0.9) and the
+ * bench is worth the remaining 10%. Without a bench the published XI weights apply unchanged.
+ */
+export const BENCH_WEIGHT = 0.1;
+export function footballWeights(cfg: MatchConfig) {
+  const bench = subsOf(cfg) > 0;
+  const k = bench ? 1 - BENCH_WEIGHT : 1;
+  return {
+    quality: FOOTBALL_WEIGHTS.quality * k, balance: FOOTBALL_WEIGHTS.balance * k, tactics: FOOTBALL_WEIGHTS.tactics * k,
+    coverage: FOOTBALL_WEIGHTS.coverage * k, chemistry: FOOTBALL_WEIGHTS.chemistry * k, bench: bench ? BENCH_WEIGHT : 0,
+  };
+}
 export const AVENGERS_WEIGHTS = { capability: 0.4, synergy: 0.25, diversity: 0.2, strategy: 0.15 };
 export const SYNERGY_CAP = 25;
 export const AFFINITY_CAP = 8;
@@ -148,9 +161,17 @@ function scoreFootball(p: Participant, cfg: MatchConfig, cards: Record<string, C
   if (oop.length) flags.push({ tone: 'warn', text: `${oop.length} player${oop.length > 1 ? 's' : ''} out of position` });
   if (pass.wall) flags.push({ tone: 'good', text: 'Solid back line' });
 
+  // 6. Bench depth — 10% when the format has substitutes: every bench place scores its player's
+  //    quality (same 70 → 0, 96 → 100 scale); an empty place scores 0.
+  const W = footballWeights(cfg);
+  const benchSize = subsOf(cfg);
+  const benchCards = lineup.slice(lines.length, lines.length + benchSize).map((id) => (id ? (cards[id] as FootballCard) : null));
+  const bench = benchSize ? avg(benchCards.map((c) => (c ? norm(footballQualityRating(c)) : 0))) : 0;
+  const benchFilled = benchCards.filter(Boolean) as FootballCard[];
+
   const parts: ScorePart[] = [
     {
-      key: 'quality', label: 'Player quality', weight: FOOTBALL_WEIGHTS.quality, score: quality,
+      key: 'quality', label: 'Player quality', weight: W.quality, score: quality,
       lines: [
         `Average overall of ${filled.length} player${filled.length === 1 ? '' : 's'}: ${round1(avgOverall) || 0}`,
         'Outfield slots use OVR; goalkeepers use 60% OVR + 40% weighted GK attributes; ratings are rescaled 70 → 0 and 96 → 100',
@@ -159,7 +180,7 @@ function scoreFootball(p: Participant, cfg: MatchConfig, cards: Record<string, C
       ],
     },
     {
-      key: 'balance', label: 'Positional suitability', weight: FOOTBALL_WEIGHTS.balance, score: balance,
+      key: 'balance', label: 'Positional suitability', weight: W.balance, score: balance,
       lines: [
         ...LINES.filter((l) => cfg.slots[l]).map((l) => `${l}: ${slots.filter((s) => s.line === l && s.card && s.fit >= 0.92).length}/${cfg.slots[l]} natural`),
         'Natural position 100 · listed secondary 92 · same line 70 · secondary line 45 · other line 20 · goalkeeper mismatch 0',
@@ -167,16 +188,28 @@ function scoreFootball(p: Participant, cfg: MatchConfig, cards: Record<string, C
       ],
     },
     {
-      key: 'tactics', label: 'Tactical balance', weight: FOOTBALL_WEIGHTS.tactics, score: tactics,
+      key: 'tactics', label: 'Tactical balance', weight: W.tactics, score: tactics,
       lines: [
         `${cfg.formation ?? 'Custom'} formation completion: ${filled.length}/${n} (55%)`,
         `Unit-strength balance across ${requiredLines.join(', ')}: ${round1(strengthBalance)} (45%; spread ${round1(strengthSpread)})`,
       ],
     },
-    { key: 'coverage', label: 'Role coverage', weight: FOOTBALL_WEIGHTS.coverage, score: coverage, lines: TACTIC_CHECKS.map((t) => `${pass[t.id] ? '✔' : '✘'} ${t.label} — ${t.rule}`) },
-    { key: 'chemistry', label: 'Team chemistry', weight: FOOTBALL_WEIGHTS.chemistry, score: chemistry, lines: ['Per player: 5 in position (+1.5 per nation or club link, max 2 each), capped at 10', ...chemLines] },
+    { key: 'coverage', label: 'Role coverage', weight: W.coverage, score: coverage, lines: TACTIC_CHECKS.map((t) => `${pass[t.id] ? '✔' : '✘'} ${t.label} — ${t.rule}`) },
+    { key: 'chemistry', label: 'Team chemistry', weight: W.chemistry, score: chemistry, lines: ['Per player: 5 in position (+1.5 per nation or club link, max 2 each), capped at 10', ...chemLines] },
+    ...(benchSize ? [{
+      key: 'bench', label: 'Bench depth', weight: W.bench, score: bench,
+      lines: [
+        `${benchFilled.length}/${benchSize} substitutes${benchFilled.length ? ` · average overall ${round1(avg(benchFilled.map((c) => c.overall)))}` : ''}`,
+        'Each bench place scores its player on the same 70 → 0, 96 → 100 scale; empty places score 0',
+        'The starting XI parts above are each scaled by 0.9 so the total stays out of 100',
+      ],
+    }] : []),
   ];
-  return finalize(p, cfg, parts, filled.length, balance, chemistry, avgOverall, flags, [], [
+  if (benchSize && benchFilled.length === benchSize && !benchFilled.some((c) => c.line === 'GK')) flags.push({ tone: 'warn', text: 'No substitute goalkeeper' });
+  if (benchSize && benchFilled.length === benchSize && avg(benchFilled.map((c) => c.overall)) >= 86) flags.push({ tone: 'good', text: 'Deep bench' });
+  // Completeness counts the whole squad, starters and substitutes alike.
+  const owned = filled.length + benchFilled.length;
+  return finalize(p, cfg, parts, owned, balance, chemistry, avgOverall, flags, [], [
     { label: 'Attack', value: lineAvg(['ATT']) },
     { label: 'Midfield', value: lineAvg(['MID']) },
     { label: 'Defense', value: lineAvg(['DEF']) },

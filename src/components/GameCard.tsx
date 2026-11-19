@@ -113,8 +113,8 @@ export const GameCard = memo(function GameCard({ card, down, mini, tilt, price, 
                 <i>{card.kind === 'football' ? card.pos : card.cls}</i>
                 <u>{card.kind === 'football' ? card.nation.slice(0, 3).toUpperCase() : card.role.split(' ')[0]}</u>
               </div>
-              <div className="uc-rar">{verified ? card.cardType === 'standard' ? card.overall >= 75 ? 'Gold' : card.overall >= 65 ? 'Silver' : 'Bronze' : card.cardType : `${RARITY_LABEL[card.rarity]} theme`}</div>
-              <div className={cx('uc-edition', verified && 'verified')}>{card.kind === 'football' ? verified ? `${card.edition} ✓` : (card.ratingMode ?? 'prime') === 'prime' ? mini ? 'Custom' : 'Legend · Custom' : `${card.edition} · Unverified` : mini ? 'Custom' : 'Custom power'}</div>
+              <div className="uc-rar">{card.kind === 'football' ? card.cardType === 'icon' ? (mini ? 'Icon' : 'Mythic · Icon') : RARITY_LABEL[card.rarity] : `${RARITY_LABEL[card.rarity]} theme`}</div>
+              <div className={cx('uc-edition', verified && 'verified')}>{card.kind === 'football' ? verified ? `${card.edition}${card.cardType === 'icon' && !mini ? ' Icon' : ''} ✓` : (card.ratingMode ?? 'prime') === 'prime' ? mini ? 'Custom' : 'Legend · Custom' : `${card.edition} · Unverified` : mini ? 'Custom' : 'Custom power'}</div>
               <div className="uc-body">
                 <div className="uc-name">{card.name}</div>
                 <div className="uc-sub">{card.kind === 'football' ? `${card.club} · ${card.role}` : `${card.role} · ${card.ability}`}</div>

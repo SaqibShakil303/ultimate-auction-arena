@@ -39,7 +39,8 @@ export function sanitizeConfig(raw: unknown, play: 'local' | 'online'): MatchCon
   const packs = strArr(r.packs, 10);
   return {
     mode, play, ratingMode, formation, budget,
-    squadSize: int(r.squadSize, 1, 15, hasSlots ? slotTotal : d.squadSize),
+    // Football squads may carry up to 7 substitutes on top of a starting formation of up to 15.
+    squadSize: int(r.squadSize, 1, 20, hasSlots ? slotTotal : d.squadSize),
     auctionType: r.auctionType === 'mystery' ? 'mystery' : 'classic',
     timerSec: int(r.timerSec, 5, 120, d.timerSec),
     increment: int(r.increment, 1, budget, incrementOptions(budget)[1]),
@@ -84,7 +85,7 @@ export function sanitizeAction(raw: unknown, pid: string): Action | null {
     case 'bid': return { type: 'bid', pid, amount: typeof r.amount === 'number' ? r.amount : NaN, bidId: String(r.bidId || '').slice(0, 64) || `${pid}-${Date.now()}` };
     case 'pass': return { type: 'pass', pid };
     case 'guess': return { type: 'guess', pid, cardId: String(r.cardId || '').slice(0, 80) };
-    case 'lineup': return { type: 'lineup', pid, lineup: Array.isArray(r.lineup) ? r.lineup.slice(0, 15).map((x: unknown) => (typeof x === 'string' ? x : null)) : [] };
+    case 'lineup': return { type: 'lineup', pid, lineup: Array.isArray(r.lineup) ? r.lineup.slice(0, 20).map((x: unknown) => (typeof x === 'string' ? x : null)) : [] };
     case 'autoLineup': return { type: 'autoLineup', pid };
     case 'formation': return FORMATIONS.includes(r.formation) ? { type: 'formation', pid, formation: r.formation } : null;
     case 'pause': case 'resume': case 'hammer': case 'skipClues': case 'end': return { type: r.type };

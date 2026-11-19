@@ -1,8 +1,8 @@
 import { BadgeCheck, ExternalLink, ShieldAlert } from 'lucide-react';
 import type { Card, MatchConfig, Sale } from '../../shared/types';
-import { basePrice } from '../../shared/engine';
+import { basePrice, startersOf } from '../../shared/engine';
 import { cardImageRecord } from '../../shared/imageManifest';
-import { AFFINITIES, covers, norm, SYNERGY_RULES, THREAT_LABEL, FOOTBALL_WEIGHTS, AVENGERS_WEIGHTS } from '../../shared/scoring';
+import { AFFINITIES, covers, footballWeights, norm, SYNERGY_RULES, THREAT_LABEL, AVENGERS_WEIGHTS } from '../../shared/scoring';
 import { formatINR, round1 } from '../../shared/util';
 import { GameCard, RARITY_COLOR, RARITY_LABEL, statKeys } from './GameCard';
 import { Bar, Chip, Modal } from './ui';
@@ -37,8 +37,17 @@ export function CardViewer({ card, cfg, cards, owner, price, sales = [], onClose
   const imageRecord = cardImageRecord(card);
   const status = card.kind === 'football' ? card.verificationStatus ?? 'custom' : 'custom';
   const pool = Object.values(cards);
-  const weight = card.kind === 'football' ? FOOTBALL_WEIGHTS.quality : AVENGERS_WEIGHTS.capability;
-  const impact = round1((norm(card.overall) * weight) / cfg.squadSize);
+  // Player quality is averaged over the starting places, so a starter's share is weight ÷ starters.
+  const weight = card.kind === 'football' ? footballWeights(cfg).quality : AVENGERS_WEIGHTS.capability;
+  const impact = round1((norm(card.overall) * weight) / Math.max(1, startersOf(cfg)));
+  const icon = card.kind === 'football' && card.cardType === 'icon';
+  const sourceName = card.kind === 'football' && card.source ? (/(^|\.)fut\.gg$/.test(new URL(card.source).hostname) ? 'FUT.GG' : /(^|\.)ea\.com$/.test(new URL(card.source).hostname) ? 'EA' : new URL(card.source).hostname) : '';
+  const builtIn = card.kind === 'football' && card.pack !== 'custom';
+  const provenance = status !== 'verified' || card.kind !== 'football' ? '' : !builtIn
+    ? `The host marked this source checked on ${card.verifiedAt}. Source contents are not checked automatically.`
+    : icon
+      ? `In-game FC 27 Base Icon values as listed by FUT.GG on ${card.verifiedAt}. EA publishes no Icon ratings page.`
+      : `Official ${card.edition} rating, read from EA’s ratings page on ${card.verifiedAt}.`;
   const sameNation = card.kind === 'football' ? pool.filter((c) => c.kind === 'football' && c.id !== card.id && c.nation === card.nation) : [];
   const sameClub = card.kind === 'football' ? pool.filter((c) => c.kind === 'football' && c.id !== card.id && c.club === card.club) : [];
   const rows: [string, string][] = card.kind === 'football'
@@ -52,7 +61,8 @@ export function CardViewer({ card, cfg, cards, owner, price, sales = [], onClose
         ['Iconic club', card.club],
         ['Era', card.era],
         ['Rating system', card.edition ?? 'Prime Legends'],
-        ['Card type', card.cardType ?? 'custom'],
+        ['Card type', icon ? 'Icon' : card.cardType ?? 'custom'],
+        ['Tier', RARITY_LABEL[card.rarity]],
         ['PlayStyles', card.playStyles?.join(', ') || 'Not supplied'],
       ]
     : [
@@ -66,7 +76,7 @@ export function CardViewer({ card, cfg, cards, owner, price, sales = [], onClose
         ['Affiliations', card.tags.join(', ')],
       ];
   return (
-    <Modal open onClose={onClose} wide title={<span className="flex flex-wrap items-center gap-2">{card.name}<Chip className="!text-[11px]"><span style={{ color: RARITY_COLOR[card.rarity] }}>{RARITY_LABEL[card.rarity]} theme</span></Chip>{card.kind === 'football' && <Tooltip><TooltipTrigger asChild><span tabIndex={0}><Chip tone={status === 'verified' ? 'good' : status === 'custom' ? 'warn' : 'bad'} className="!text-[11px]">{status === 'verified' ? <BadgeCheck size={12} /> : <ShieldAlert size={12} />}{status === 'verified' ? 'Host verified' : status === 'custom' ? 'Custom rating' : 'Rating not verified'}</Chip></span></TooltipTrigger><TooltipContent sideOffset={8} className="max-w-64 bg-[#e9edfa] text-[#071022]">{status === 'verified' ? `The host marked this source checked on ${card.verifiedAt}. Source contents are not checked automatically.` : 'This card is not represented as official EA data.'}</TooltipContent></Tooltip>}</span>}>
+    <Modal open onClose={onClose} wide title={<span className="flex flex-wrap items-center gap-2">{card.name}<Chip className="!text-[11px]"><span style={{ color: RARITY_COLOR[card.rarity] }}>{RARITY_LABEL[card.rarity]}{card.kind === 'football' ? icon ? ' · Icon' : ' tier' : ' theme'}</span></Chip>{card.kind === 'football' && <Tooltip><TooltipTrigger asChild><span tabIndex={0}><Chip tone={status === 'verified' ? 'good' : status === 'custom' ? 'warn' : 'bad'} className="!text-[11px]">{status === 'verified' ? <BadgeCheck size={12} /> : <ShieldAlert size={12} />}{status === 'verified' ? builtIn ? 'Sourced rating' : 'Host verified' : status === 'custom' ? 'Custom rating' : 'Rating not verified'}</Chip></span></TooltipTrigger><TooltipContent sideOffset={8} className="max-w-64 bg-[#e9edfa] text-[#071022]">{status === 'verified' ? provenance : 'This card is not represented as official EA data.'}</TooltipContent></Tooltip>}</span>}>
       <div className="grid gap-6 md:grid-cols-[minmax(220px,300px)_1fr]">
         <div className="mx-auto w-full max-w-[300px]">
           <GameCard card={card} tilt price={price ?? basePrice(card.overall, cfg)} owner={owner} />
@@ -102,7 +112,7 @@ export function CardViewer({ card, cfg, cards, owner, price, sales = [], onClose
             <h4 className="mb-1.5 font-display text-sm font-bold uppercase tracking-widest text-slate-300">Deeper analytics</h4>
             <ul className="space-y-1 text-slate-300">
               <li>Opening bid: <b>{formatINR(basePrice(card.overall, cfg))}</b> ({round1((basePrice(card.overall, cfg) / cfg.budget) * 100)}% of the starting budget)</li>
-              <li>Estimated impact: about <b>+{impact}</b> points of final team score {card.kind === 'football' ? 'when played in position' : 'from raw capability'}</li>
+              <li>Estimated impact: about <b>+{impact}</b> points of final team score {card.kind === 'football' ? 'when it starts in position' : 'from raw capability'}</li>
               {card.kind === 'football' ? (
                 <>
                   <li>Chemistry — nation links: <b>{sameNation.length}</b> other {card.nation} card{sameNation.length === 1 ? '' : 's'} in this pool{sameNation.length ? ` (${sameNation.slice(0, 4).map((c) => c.name).join(', ')}${sameNation.length > 4 ? '…' : ''})` : ''}</li>
@@ -110,7 +120,7 @@ export function CardViewer({ card, cfg, cards, owner, price, sales = [], onClose
                   {card.line === 'GK' && <li className="text-muted">Goalkeepers use DIV / HAN / KIC / REF / SPD / POS in place of the outfield attributes.</li>}
                   <li className={card.verificationStatus === 'verified' ? 'text-emerald-200' : 'text-amber-200'}>
                     {card.verificationStatus === 'verified' ? <BadgeCheck size={13} className="mr-1 inline" /> : <ShieldAlert size={13} className="mr-1 inline" />}
-                    {status === 'verified' ? <>{card.pack === 'custom' ? <>Host checked the source on {card.verifiedAt}. </> : <>Official {card.edition} rating, read from EA’s ratings page on {card.verifiedAt}. </>}{card.source && <a href={card.source} target="_blank" rel="noreferrer" className="font-semibold underline">Open EA source <ExternalLink size={11} className="inline" /></a>}</> : status === 'custom' ? 'Prime Legends/custom game-balance data — not an official FC rating.' : 'Rating not verified. Complete all rating fields and check the edition against its EA source before marking verified.'}
+                    {status === 'verified' ? <>{provenance} {card.source && <a href={card.source} target="_blank" rel="noreferrer" className="font-semibold underline">Open {sourceName} source <ExternalLink size={11} className="inline" /></a>}</> : status === 'custom' ? 'Prime Legends/custom game-balance data — not an official FC rating.' : 'Rating not verified. Complete all rating fields and check the edition against its EA source before marking verified.'}
                   </li>
                 </>
               ) : (

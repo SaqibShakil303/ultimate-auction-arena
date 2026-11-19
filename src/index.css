@@ -493,6 +493,14 @@ button:disabled { cursor: not-allowed; }
 .uc-backin small { position: absolute; bottom: 11cqw; font-family: var(--font-display); font-weight: 700; letter-spacing: 0.3em; font-size: 4cqw; color: #ffd257; opacity: 0.85; }
 
 /* ───────────── pitch ───────────── */
+.bench {
+  border-radius: 1.1rem;
+  border: 1px solid rgba(125, 211, 252, 0.18);
+  background:
+    linear-gradient(180deg, rgba(14, 30, 52, 0.85), rgba(6, 14, 28, 0.92)),
+    repeating-linear-gradient(90deg, rgba(255, 255, 255, 0.025) 0 14px, transparent 14px 28px);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06), 0 14px 30px -18px rgba(56, 189, 248, 0.45);
+}
 .pitch {
   border-radius: 20px; border: 2px solid rgba(214, 255, 74, 0.35);
   background:

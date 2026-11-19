@@ -6,7 +6,7 @@ import { createMatch, autoLineup, defaultConfig } from './engine';
 import { FOOTBALLERS, LINE_NAME, LINE_OF } from './data/football';
 import { rankTeams } from './scoring';
 import type { Card, FootballCard, MatchConfig, MatchState, Participant, Sale } from './types';
-import { rarityOf, slug } from './util';
+import { footballRarity, slug } from './util';
 import { withPortrait } from './catalog';
 
 const STARTING_BUDGET = 1_000_000;
@@ -91,7 +91,7 @@ function primeLegend(
   const line = LINE_OF[pos];
   const alts = alt ? alt.split(',') : [];
   return {
-    kind: 'football', id: `f-${slug(name)}`, name, overall, rarity: rarityOf(overall), stats,
+    kind: 'football', id: `f-${slug(name)}`, name, overall, rarity: footballRarity(overall, true), stats,
     trait, strengths: ['Prime-era impact', 'Elite tactical fit'], weaknesses: ['Custom balance rating'],
     clues: [`${LINE_NAME[line]} (${pos}) from ${nation}`, 'Prime Legends custom game-balance card', `Known as the “${trait}”`],
     pack: 'legends', line, pos, alt: alts,

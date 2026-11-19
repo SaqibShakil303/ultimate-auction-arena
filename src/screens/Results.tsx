@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Award as AwardIcon, Download, Repeat, RotateCcw, Share2, Shuffle, Swords, Trophy, Crown } from 'lucide-react';
 import type { Card, Participant } from '../../shared/types';
-import { autoLineup, teamConfig } from '../../shared/engine';
+import { autoLineup, subsOf, teamConfig } from '../../shared/engine';
 import { BATTLE_RULES, computeAwards, rankTeams, simulateBattle, type Award, type Ranked } from '../../shared/scoring';
 import { compactINR, formatINR } from '../../shared/util';
 import type { Controller, Snap } from '../lib/controller';
@@ -351,7 +351,7 @@ export function Results({ snap, ctl, onHome, onRematch, onSwitch }: { snap: Snap
                 <ScoreBreakdown score={focusRow.score} />
                 <div className="space-y-2 text-sm text-slate-300">
                   <h3 className="font-display text-sm font-bold uppercase tracking-widest text-slate-200">How ranking works</h3>
-                  <p>The team score is the weighted sum of the {cfg.mode === 'football' ? 'five' : 'four'} parts on the left, minus {cfg.emptyPenalty} points per empty slot{cfg.auctionType === 'mystery' ? ', plus the capped Mystery guess bonus' : ''}, capped at 100. Every input comes from data fixed before the auction.</p>
+                  <p>The team score is the weighted sum of the {cfg.mode === 'football' ? subsOf(cfg) ? 'six' : 'five' : 'four'} parts on the left{cfg.mode === 'football' && subsOf(cfg) ? ' (five for the starting XI, one for the bench)' : ''}, minus {cfg.emptyPenalty} points per empty squad place{cfg.auctionType === 'mystery' ? ', plus the capped Mystery guess bonus' : ''}, capped at 100. Every input comes from data fixed before the auction.</p>
                   <ol className="list-decimal space-y-1 pl-5 text-xs text-muted">
                     {cfg.completeFirst && <li>Complete squads rank above incomplete squads.</li>}
                     <li>Highest team score.</li><li>Better squad completeness.</li>

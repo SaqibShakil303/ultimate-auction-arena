@@ -95,7 +95,7 @@ for (const mode of ['football', 'heroes'] as const) {
     await bid.click();
     await expect(page.getByRole('button', { name: /^You hold the highest bid/ })).toBeVisible();
     const pending = await page.evaluate(() => JSON.parse(localStorage.getItem('uaa.local.v1')!).state);
-    expect(pending.config.squadSize).toBe(mode === 'football' ? 11 : 5);
+    expect(pending.config.squadSize).toBe(mode === 'football' ? 16 : 5); // football: 11 starters + 5 substitutes
     const amount = pending.lot.bid;
     await page.getByRole('button', { name: 'Hammer — sell now' }).click();
     await expect.poll(async () => page.evaluate(() => JSON.parse(localStorage.getItem('uaa.local.v1')!).state.participants[0].squad.length)).toBe(1);

@@ -21,6 +21,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { FOOTBALLERS } from '../shared/data/football';
 import { FC27_ROWS } from '../shared/data/fc27';
+import { FC27_ICONS } from '../shared/data/fc27Icons';
 import { EXTRA_PRIME_LEGENDS } from '../shared/demo';
 import { slug } from '../shared/util';
 
@@ -30,7 +31,7 @@ const UA = 'UltimateAuctionArena/1.0 (fan-made party game; portrait credit looku
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 const refresh = process.argv.includes('--refresh');
 
-interface Person { key: string; name: string; born: string }
+interface Person { key: string; name: string; born: string; full?: string }
 interface Match { qid: string; label: string; image: string | null; note?: string }
 interface Credit { key: string; file: string; license: string; licenseUrl: string; artist: string; page: string; wikidata: string }
 
@@ -44,6 +45,8 @@ const LABELS: Record<string, string> = {
 
 const people = new Map<string, Person>();
 for (const r of FC27_ROWS) people.set(slug(r.name), { key: slug(r.name), name: r.name, born: r.born });
+// FC 27 Icons carry a date of birth too, so they are matched as exactly as current players.
+for (const r of FC27_ICONS) if (!people.get(slug(r.name))?.born) people.set(slug(r.name), { key: slug(r.name), name: r.name, born: r.born, full: r.full });
 for (const c of [...FOOTBALLERS, ...EXTRA_PRIME_LEGENDS]) if (!people.has(slug(c.name))) people.set(slug(c.name), { key: slug(c.name), name: c.name, born: '' });
 
 /** fetch() that turns connection errors into a retry instead of a crash. */
@@ -108,7 +111,11 @@ for (const group of chunk([...new Set(withBirth.map((p) => p.born))], 45)) {
     } GROUP BY ?item ?itemLabel ?dob`);
   for (const p of withBirth.filter((x) => group.includes(x.born))) {
     const scored = rows.filter((r) => r.dob.value.startsWith(p.born))
-      .map((r) => ({ r, score: nameScore(p.name, r.itemLabel?.value || '', (r.alts?.value || '').split('|').filter(Boolean)) }))
+      .map((r) => {
+        const label = r.itemLabel?.value || '';
+        const alts = (r.alts?.value || '').split('|').filter(Boolean);
+        return { r, score: Math.max(nameScore(p.name, label, alts), p.full ? nameScore(p.full, label, alts) : 0) };
+      })
       .filter((x) => x.score > 0).sort((a, b) => b.score - a.score);
     if (!scored.length) { problems.push(`${p.name}: no football player born ${p.born} with a matching name`); continue; }
     if (scored.length > 1 && scored[0].score === scored[1].score) { problems.push(`${p.name}: ambiguous (${scored.slice(0, 3).map((x) => x.r.itemLabel.value).join(' / ')})`); continue; }
@@ -120,7 +127,13 @@ for (const group of chunk([...new Set(withBirth.map((p) => p.born))], 45)) {
 }
 
 // ── legends and retired players: exact name, most widely documented entry ──
-const byName = [...people.values()].filter((p) => !p.born);
+// Icons whose listed birth date differs from Wikidata's (it happens for a few) fall back to this exact-name stage.
+const iconRetry = [...people.values()].filter((p) => p.full && p.born && !matches.has(p.key));
+for (const p of iconRetry) {
+  const i = problems.findIndex((x) => x.startsWith(`${p.name}: `));
+  if (i >= 0) problems.splice(i, 1);
+}
+const byName = [...[...people.values()].filter((p) => !p.born), ...iconRetry];
 for (const group of chunk(byName, 40)) {
   const label = (p: Person) => LABELS[p.key] ?? p.name;
   const rows = await sparql(`

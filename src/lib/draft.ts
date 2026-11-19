@@ -1,5 +1,6 @@
 import type { Card, Custom, MatchConfig, Mode } from '../../shared/types';
-import { buildPool, defaultConfig, incrementOptions } from '../../shared/engine';
+import { buildPool, defaultConfig, incrementOptions, startersOf, subsOf } from '../../shared/engine';
+import { LINES } from '../../shared/types';
 import { applyCustom, emptyCustom, getCatalog } from '../../shared/catalog';
 import { sanitizeCustom } from '../../shared/config';
 
@@ -13,10 +14,25 @@ export interface Draft {
 
 export const PLAYER_COLORS = ['#38bdf8', '#f472b6', '#facc15', '#4ade80', '#fb923c', '#a78bfa', '#f87171', '#2dd4bf'];
 
-/** What the setup wizard starts from: Football opens on the bundled official FC 27 ratings. */
+/** Substitutes a new football match starts with (11 starters + 5 on the bench). */
+export const DEFAULT_SUBS = 5;
+
+/**
+ * What the setup wizard starts from: Football opens on the bundled official FC 27 Gold players
+ * and Icons, with a 16-player squad (starting XI plus five substitutes).
+ */
 export function startConfig(mode: Mode, budget?: number): MatchConfig {
   const base = defaultConfig(mode, budget);
-  return mode === 'football' ? { ...base, ratingMode: 'fc27' } : base;
+  return mode === 'football' ? { ...base, ratingMode: 'fc27', packs: ['modern', 'icons'], squadSize: 11 + DEFAULT_SUBS } : base;
+}
+
+/** "16 · 11 starters + 5 subs · 1 GK / 4 DEF / 3 MID / 3 ATT" — or "5 heroes". */
+export function squadSummary(cfg: MatchConfig, withTotal = true): string {
+  if (cfg.mode !== 'football') return `${cfg.squadSize} heroes`;
+  const subs = subsOf(cfg);
+  const shape = LINES.map((l) => `${cfg.slots[l]} ${l}`).join(' / ');
+  const total = withTotal ? `${cfg.squadSize} · ` : '';
+  return subs ? `${total}${startersOf(cfg)} starters + ${subs} subs · ${shape}` : `${total}${shape}`;
 }
 
 export function newDraft(mode: Mode = 'football'): Draft {

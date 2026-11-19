@@ -5,24 +5,30 @@ import type { FootballCard } from '../shared/types';
 import { buildPool, defaultConfig, validateSetup } from '../shared/engine';
 import { applyCustom, getCatalog } from '../shared/catalog';
 import { FC27_RETRIEVED, FC27_ROWS, FC27_SOURCE } from '../shared/data/fc27';
+import { FC27_ICONS, FC27_ICONS_RETRIEVED, FC27_ICONS_SOURCE } from '../shared/data/fc27Icons';
 import { rankTeams } from '../shared/scoring';
 import { playOut, Sim } from './helpers';
 
 const catalog = getCatalog('football') as FootballCard[];
-const fc27 = catalog.filter((c) => c.ratingMode === 'fc27');
+const fc27All = catalog.filter((c) => c.ratingMode === 'fc27');
+const fc27 = fc27All.filter((c) => c.cardType === 'standard');
+const icons = fc27All.filter((c) => c.cardType === 'icon');
+const GOLD = FC27_ROWS.filter((r) => r.overall >= 75);
 const cfg27 = { ...defaultConfig('football'), ratingMode: 'fc27' as const };
 
 describe('official FC 27 dataset', () => {
-  it('ships a complete, verified record for every bundled player', () => {
-    expect(fc27.length).toBe(FC27_ROWS.length);
+  it('ships a complete, verified record for every bundled Gold player', () => {
+    expect(fc27.length).toBe(GOLD.length);
     expect(fc27.length).toBeGreaterThanOrEqual(250);
+    expect(fc27All).toHaveLength(fc27.length + icons.length);
     expect(FC27_SOURCE).toBe('https://www.ea.com/games/ea-sports-fc/ratings');
     expect(FC27_RETRIEVED).toMatch(/^\d{4}-\d{2}-\d{2}$/);
     expect(new Set(fc27.map((c) => c.id)).size).toBe(fc27.length);
     for (const c of fc27) {
       expect(c).toMatchObject({ edition: 'FC 27', cardType: 'standard', verificationStatus: 'verified', verifiedAt: FC27_RETRIEVED });
       expect(c.source).toMatch(/^https:\/\/www\.ea\.com\/games\/ea-sports-fc\/ratings\/player-ratings\/[a-z0-9-]+\/\d+$/);
-      expect(c.overall >= 40 && c.overall <= 99).toBe(true);
+      expect(c.overall >= 75 && c.overall <= 99).toBe(true); // Gold only
+      expect(c.rarity).toBe(c.overall >= 85 ? 'legendary' : 'epic');
       expect(c.stats).toHaveLength(6);
       c.stats.forEach((v) => expect(Number.isInteger(v) && v >= 1 && v <= 99).toBe(true));
       expect(c.nation && c.club && c.pos).toBeTruthy();
@@ -34,7 +40,7 @@ describe('official FC 27 dataset', () => {
     // Spot checks against values read from the EA page when the file was generated.
     const row = (name: string) => FC27_ROWS.find((r) => r.name === name)!;
     const card = (name: string) => fc27.find((c) => c.name === name)!;
-    for (const name of ['Kylian Mbappé', 'Erling Haaland', 'Thibaut Courtois', 'Lionel Messi', 'Sunil Chhetri']) {
+    for (const name of ['Kylian Mbappé', 'Erling Haaland', 'Thibaut Courtois', 'Lionel Messi']) {
       expect(card(name).overall).toBe(row(name).overall);
       expect(card(name).stats).toEqual(row(name).stats);
       expect(card(name).pos).toBe(row(name).pos);
@@ -56,14 +62,15 @@ describe('official FC 27 dataset', () => {
     expect(buildPool(edited, cfg27).some((c) => c.id === target.id)).toBe(false);
   });
 
-  it('builds an official pool, with legends only as clearly labelled custom guests', () => {
-    const both = buildPool(catalog, cfg27) as FootballCard[];
+  it('builds an official pool of Gold players and Icons only — custom legends never join it', () => {
+    const both = buildPool(catalog, { ...cfg27, packs: ['modern', 'icons', 'legends'] }) as FootballCard[];
     const officialOnly = buildPool(catalog, { ...cfg27, packs: ['modern'] }) as FootballCard[];
-    const legends = both.filter((c) => c.ratingMode !== 'fc27');
     expect(officialOnly).toHaveLength(fc27.length);
-    expect(officialOnly.every((c) => c.verificationStatus === 'verified')).toBe(true);
-    expect(legends.length).toBeGreaterThan(40);
-    expect(legends.every((c) => c.pack === 'legends' && c.verificationStatus === 'custom' && c.era === 'Legend')).toBe(true);
+    expect(both).toHaveLength(fc27.length + icons.length);
+    expect(both.every((c) => c.verificationStatus === 'verified' && c.ratingMode === 'fc27' && c.overall >= 75)).toBe(true);
+    expect(both.some((c) => c.pack === 'legends')).toBe(false);
+    // Silver and Bronze players stay out of the game entirely.
+    expect(FC27_ROWS.filter((r) => r.overall < 75).every((r) => !catalog.some((c) => c.id === 'fc27-' + r.id))).toBe(true);
     // Classic custom versions of current players never leak into an official match.
     expect(both.some((c) => c.id === 'f-lionel-messi')).toBe(false);
     expect(both.filter((c) => c.name === 'Lionel Messi')).toHaveLength(1);
@@ -71,6 +78,33 @@ describe('official FC 27 dataset', () => {
     const prime = buildPool(catalog, defaultConfig('football')) as FootballCard[];
     expect(prime.every((c) => c.ratingMode === 'prime')).toBe(true);
     expect(prime).toHaveLength(134);
+  });
+
+  it('ships every men’s FC 27 Base Icon as a Mythic card credited to its FUT.GG page', () => {
+    expect(FC27_ICONS_SOURCE).toBe('https://www.fut.gg/rarities/base-icon/');
+    expect(FC27_ICONS_RETRIEVED).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+    expect(icons).toHaveLength(FC27_ICONS.length);
+    expect(icons.length).toBeGreaterThanOrEqual(100);
+    expect(new Set(FC27_ICONS.map((r) => r.id)).size).toBe(FC27_ICONS.length);
+    for (const c of icons) {
+      expect(c).toMatchObject({ edition: 'FC 27', cardType: 'icon', verificationStatus: 'verified', verifiedAt: FC27_ICONS_RETRIEVED, rarity: 'mythic', era: 'Legend', pack: 'icons', club: 'Icons' });
+      expect(c.id.startsWith('fc27-icon-')).toBe(true);
+      expect(c.source).toMatch(/^https:\/\/www\.fut\.gg\/players\/\d+-[a-z0-9-]+\/27-\d+\/$/);
+      expect(c.overall >= 75 && c.overall <= 99).toBe(true);
+      expect(c.stats).toHaveLength(6);
+      c.stats.forEach((v) => expect(Number.isInteger(v) && v >= 1 && v <= 99).toBe(true));
+      expect(c.clues).toHaveLength(3);
+      expect(c.clues.join(' ')).not.toContain(c.name); // Mystery clues never give the name away
+    }
+    // Spot checks against the values read when the file was generated.
+    const icon = (name: string) => icons.find((c) => c.name === name)!;
+    expect(icon('Pelé')).toMatchObject({ overall: 95, pos: 'CAM', line: 'MID', nation: 'Brazil', stats: [93, 94, 91, 94, 58, 74] });
+    expect(icon('Paolo Maldini')).toMatchObject({ overall: 93, pos: 'CB', line: 'DEF', stats: [85, 55, 75, 72, 95, 84] });
+    expect(icon('Gianluigi Buffon')).toMatchObject({ overall: 92, pos: 'GK', line: 'GK', stats: [95, 88, 79, 94, 51, 90] }); // DIV HAN KIC REF SPD POS
+    // No Icon is also listed as a current player.
+    const current = new Set(fc27.map((c) => c.name));
+    expect(icons.filter((c) => current.has(c.name))).toEqual([]);
+    expect(new Set(icons.map((c) => c.line))).toEqual(new Set(['GK', 'DEF', 'MID', 'ATT']));
   });
 
   it('has enough official players of every position for eight strict squads in each formation', () => {

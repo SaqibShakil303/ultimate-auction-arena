@@ -2,15 +2,16 @@ import { useMemo, useRef, useState } from 'react';
 import { ArrowLeft, ArrowRight, BadgeCheck, Download, FileSpreadsheet, Globe, Minus, Plus, RotateCcw, Search, Shield, Smartphone, Trophy, Upload, Users, Zap } from 'lucide-react';
 import type { Card, Custom, FormationName, Line, MatchConfig, Mode, RatingMode } from '../../shared/types';
 import { HERO_CLASSES, LINES } from '../../shared/types';
-import { basePrice, CLUE_STEP_MS, FORMATIONS, GUESS_BONUS, GUESS_CAP, incrementOptions, minPrice, quickSteps, slotsForFormation, validateSetup } from '../../shared/engine';
+import { basePrice, CLUE_STEP_MS, FORMATIONS, GUESS_BONUS, GUESS_CAP, incrementOptions, MAX_BENCH_GK, MAX_SUBS, minPrice, quickSteps, slotsForFormation, startersOf, subsOf, validateSetup } from '../../shared/engine';
 import { buildPool } from '../../shared/engine';
 import { FC27_RETRIEVED } from '../../shared/data/fc27';
+import { FC27_ICONS_RETRIEVED } from '../../shared/data/fc27Icons';
 import { normalizeCard, PACKS } from '../../shared/catalog';
 import { parseCardCsv } from '../../shared/cardImport';
-import { AVENGERS_WEIGHTS, BATTLE_RULES, FOOTBALL_WEIGHTS, SYNERGY_CAP } from '../../shared/scoring';
+import { AVENGERS_WEIGHTS, BATTLE_RULES, footballWeights, SYNERGY_CAP } from '../../shared/scoring';
 import { compactINR, formatINR } from '../../shared/util';
-import { catalogFor, poolFor, withBudget, withMode, type Draft } from '../lib/draft';
-import { RARITY_COLOR, statKeys } from '../components/GameCard';
+import { catalogFor, poolFor, squadSummary, withBudget, withMode, type Draft } from '../lib/draft';
+import { RARITY_COLOR, RARITY_LABEL, statKeys } from '../components/GameCard';
 import { Btn, Chip, cx, Field, inputCls, Logo, Modal, Seg, Toggle } from '../components/ui';
 import { Progress } from '../components/shadcn/progress';
 
@@ -189,9 +190,12 @@ export function Setup({ initial, initialCustom, roomMode, onCancel, onSubmit }: 
 
   const setSlots = (line: Line, v: number) => {
     const slots = { ...cfg.slots, [line]: v };
-    set({ slots, squadSize: LINES.reduce((a, l) => a + slots[l], 0), formation: null });
+    set({ slots, squadSize: LINES.reduce((a, l) => a + slots[l], 0) + subsOf(cfg), formation: null });
   };
-  const setFormation = (formation: FormationName) => set({ formation, slots: slotsForFormation(formation), squadSize: 11 });
+  const setFormation = (formation: FormationName) => set({ formation, slots: slotsForFormation(formation), squadSize: 11 + subsOf(cfg) });
+  const setSubs = (subs: number) => set({ squadSize: startersOf(cfg) + subs });
+  // Each rating database has its own packs: official FC 27 = Gold players + Icons, Prime = custom Legends + Modern.
+  const packsFor = (ratingMode: RatingMode) => PACKS.football.map((pk) => pk.id).filter((id) => buildPool(fullCatalog, { ...cfg, ratingMode, packs: [id], excluded: [] }).some((c) => c.pack === id));
   const fullCatalog = useMemo(() => catalogFor(cfg.mode, custom), [cfg.mode, custom]);
   const counts = (key: (c: Card) => string) => pool.reduce<Record<string, number>>((a, c) => ((a[key(c)] = (a[key(c)] || 0) + 1), a), {});
   const byGroup = counts((c) => (c.kind === 'football' ? c.line : c.cls));
@@ -201,7 +205,9 @@ export function Setup({ initial, initialCustom, roomMode, onCancel, onSubmit }: 
     return acc;
   }, { fc26: 0, fc27: 0, prime: 0 }) : null;
   const verifiedCount = pool.filter((c) => c.kind === 'football' && c.verificationStatus === 'verified').length;
-  const legendGuests = cfg.mode === 'football' && cfg.ratingMode !== 'prime' ? pool.filter((c) => c.kind === 'football' && c.verificationStatus !== 'verified').length : 0;
+  const iconCount = pool.filter((c) => c.kind === 'football' && c.cardType === 'icon').length;
+  const goldCount = verifiedCount - iconCount;
+  const W = footballWeights(cfg);
 
   return (
     <div className="mx-auto flex min-h-screen w-full max-w-4xl flex-col px-4 py-6 sm:py-10" data-mode={cfg.mode}>
@@ -232,7 +238,7 @@ export function Setup({ initial, initialCustom, roomMode, onCancel, onSubmit }: 
             <h1 className="font-display text-4xl font-bold uppercase"><span className="grad-text">Choose your arena</span></h1>
             <div className="grid gap-4 sm:grid-cols-2">
               {([
-                ['football', 'Football Auction', 'Draft an 11-player XI. Win on quality, positional suitability, tactical balance, role coverage and chemistry.', <Trophy key="i" size={26} />, '#2fe6a0', '/assets/arena-football.jpg', 'linear-gradient(135deg,#d6ff4a,#2fe6a0,#22c7f0)'],
+                ['football', 'Football Auction', 'Draft a starting XI plus a 5-man bench from FC 27 Gold players and every Icon. Win on quality, position fit, tactics, coverage, chemistry and bench depth.', <Trophy key="i" size={26} />, '#2fe6a0', '/assets/arena-football.jpg', 'linear-gradient(135deg,#d6ff4a,#2fe6a0,#22c7f0)'],
                 ['avengers', 'Heroes Auction', 'Recruit 5 heroes. Win on power, synergy, role diversity and counter coverage.', <Zap key="i" size={26} />, '#c77dff', '/assets/arena-heroes.jpg', 'linear-gradient(135deg,#ff4e9a,#b25cff,#5b7bff)'],
               ] as const).map(([mode, title, text, icon, color, img, grad]) => (
                 <button
@@ -306,7 +312,7 @@ export function Setup({ initial, initialCustom, roomMode, onCancel, onSubmit }: 
                     onChange={(e) => { const v = e.target.value.replace(/\D/g, '').slice(0, 11); setCustomBudget(v); if (Number(v) >= 1000) set(withBudget(cfg, Number(v))); }} />
                 </div>
               </div>
-              <p className="mt-2 text-xs text-muted">Opening prices scale with the budget: {formatINR(minPrice(cfg))} for a common card up to {formatINR(basePrice(99, cfg))} for a mythic.</p>
+              <p className="mt-2 text-xs text-muted">Opening prices scale with the budget and squad size: {formatINR(minPrice(cfg))} for a card rated under 82 up to {formatINR(basePrice(99, cfg))} for a 94+ card.</p>
             </Field>
             <div className="grid gap-6 sm:grid-cols-2">
               <Field label="Auction type">
@@ -315,7 +321,7 @@ export function Setup({ initial, initialCustom, roomMode, onCancel, onSubmit }: 
               </Field>
               <Field label="Squad rules">
                 <Seg value={cfg.rules} onChange={(rules) => set({ rules })} options={[{ value: 'strict', label: 'Strict' }, { value: 'casual', label: 'Casual' }]} />
-                <p className="mt-2 text-xs text-muted">{cfg.rules === 'strict' ? (cfg.mode === 'football' ? 'You may only buy players for open formation slots.' : `At most ${cfg.maxPerClass} heroes of the same class per team.`) : (cfg.mode === 'football' ? 'Buy anyone — but players out of position are penalised in scoring.' : 'Buy anyone — role diversity still counts for 20% of the score.')}</p>
+                <p className="mt-2 text-xs text-muted">{cfg.rules === 'strict' ? (cfg.mode === 'football' ? `Buy players for open formation slots${subsOf(cfg) ? `, plus up to ${subsOf(cfg)} substitutes of any position (at most ${MAX_BENCH_GK} substitute keeper)` : ''}.` : `At most ${cfg.maxPerClass} heroes of the same class per team.`) : (cfg.mode === 'football' ? 'Buy anyone — but players out of position are penalised in scoring.' : 'Buy anyone — role diversity still counts for 20% of the score.')}</p>
               </Field>
               <Field label="Time per card">
                 <Seg value={cfg.timerSec} onChange={(timerSec) => set({ timerSec })} options={[10, 15, 20, 30].map((s) => ({ value: s, label: `${s}s` }))} />
@@ -326,11 +332,12 @@ export function Setup({ initial, initialCustom, roomMode, onCancel, onSubmit }: 
               <Field label="Anti-sniping extension" hint="late bids reset the clock">
                 <Seg value={cfg.antiSnipeSec} onChange={(antiSnipeSec) => set({ antiSnipeSec })} options={[3, 5, 8].map((s) => ({ value: s, label: `${s}s` }))} />
               </Field>
-              <Field label={cfg.mode === 'football' ? 'Formation (squad size follows)' : 'Team size'}>
+              <Field label={cfg.mode === 'football' ? 'Formation and bench' : 'Team size'}>
                 {cfg.mode === 'football' ? (
                   <div className="space-y-3">
                     <Seg value={cfg.formation ?? 'custom'} onChange={(value) => { if (value !== 'custom') setFormation(value); else set({ formation: null }); }} options={[...FORMATIONS.map((formation) => ({ value: formation as FormationName | 'custom', label: formation })), { value: 'custom' as const, label: 'Custom' }]} />
-                    <p className="text-xs text-muted">{cfg.formation ? `${cfg.formation} · ${LINES.map((l) => `${cfg.slots[l]} ${l}`).join(' / ')} · 11 players` : `Custom formation · ${cfg.squadSize} total players`}</p>
+                    <Stepper label="Substitutes" value={subsOf(cfg)} min={0} max={MAX_SUBS} onChange={setSubs} />
+                    <p className="text-xs text-muted">{cfg.formation ? `${cfg.formation} · ` : 'Custom formation · '}{squadSummary(cfg, false)} — {cfg.squadSize} players per squad</p>
                     <details open={!cfg.formation} className="rounded-xl border border-line bg-black/15 p-3">
                       <summary className="cursor-pointer text-xs font-semibold text-slate-300">Fine-tune line counts</summary>
                       <div className="mt-2 grid grid-cols-2 gap-2">{LINES.map((l) => <Stepper key={l} label={l} value={cfg.slots[l]} min={l === 'GK' ? 0 : 1} max={l === 'GK' ? 2 : 6} onChange={(v) => setSlots(l, v)} />)}</div>
@@ -360,7 +367,7 @@ export function Setup({ initial, initialCustom, roomMode, onCancel, onSubmit }: 
             <h1 className="font-display text-4xl font-bold uppercase"><span className="grad-text">Card pool</span></h1>
             {cfg.mode === 'football' && ratingCounts && (
               <Field label="Rating database" hint="chosen before the auction and never mixed silently">
-                <Seg value={cfg.ratingMode} onChange={(ratingMode) => set({ ratingMode, excluded: [] })} options={[
+                <Seg value={cfg.ratingMode} onChange={(ratingMode) => set({ ratingMode, excluded: [], packs: packsFor(ratingMode).length ? packsFor(ratingMode) : cfg.packs })} options={[
                   { value: 'fc27', label: `FC 27 Official (${ratingCounts.fc27})` },
                   { value: 'fc26', label: `FC 26 Official (${ratingCounts.fc26})` },
                   { value: 'prime', label: `Prime Legends / Custom (${ratingCounts.prime})` },
@@ -369,22 +376,22 @@ export function Setup({ initial, initialCustom, roomMode, onCancel, onSubmit }: 
                   {cfg.ratingMode === 'prime' ? (
                     <>Built-in values are explicitly custom game-balance ratings, never presented as official EA data. Imported verified Icon/Hero items may also carry their specific source.</>
                   ) : verifiedCount ? (
-                    <><BadgeCheck size={13} className="mr-1 inline" />{verifiedCount} official {cfg.ratingMode === 'fc27' ? 'FC 27' : 'FC 26'} card{verifiedCount === 1 ? '' : 's'} ready{cfg.ratingMode === 'fc27' ? <> — base ratings read from EA’s public ratings page on {FC27_RETRIEVED}; every card links to its EA page</> : null}.{legendGuests > 0 && <> Plus <b>{legendGuests} legends with custom ratings</b>: EA publishes no Icon ratings, so legends are this game’s own values and are labelled “Custom” on every card. Turn the Legends pack off for an official-only auction.</>}</>
+                    <><BadgeCheck size={13} className="mr-1 inline" />{verifiedCount} sourced {cfg.ratingMode === 'fc27' ? 'FC 27' : 'FC 26'} card{verifiedCount === 1 ? '' : 's'} ready{cfg.ratingMode === 'fc27' ? <>: <b>{goldCount} Gold players</b> (75+ only) read from EA’s public ratings page on {FC27_RETRIEVED}{iconCount > 0 && <>, and <b>{iconCount} Icons</b> with their in-game Base Icon values as listed by FUT.GG on {FC27_ICONS_RETRIEVED} — EA publishes no Icon ratings page</>}. Every card links to its source</> : null}.</>
                   ) : (
                     <>No verified {cfg.ratingMode === 'fc27' ? 'FC 27' : 'FC 26'} dataset is installed. Use <b>Manage, edit & import cards</b> for a provenance-bearing CSV/JSON file. The app never invents official ratings.</>
                   )}
                 </div>
-                <p className="mt-2 text-[11px] text-muted">Primary reference: <a className="text-accent underline" href="https://www.ea.com/games/ea-sports-fc/ratings" target="_blank" rel="noreferrer">EA SPORTS FC Ratings</a>. It lists standard player items only — not Icons or Heroes. FC 26 requires a preserved, sourced import.</p>
+                <p className="mt-2 text-[11px] text-muted">Primary reference: <a className="text-accent underline" href="https://www.ea.com/games/ea-sports-fc/ratings" target="_blank" rel="noreferrer">EA SPORTS FC Ratings</a>. It lists standard player items only, so Icons come from <a className="text-accent underline" href="https://www.fut.gg/rarities/base-icon/" target="_blank" rel="noreferrer">FUT.GG’s Base Icon list</a>. FC 26 requires a preserved, sourced import.</p>
               </Field>
             )}
             <Field label="Card packs">
               <div className="grid gap-3 sm:grid-cols-3">
-                {PACKS[cfg.mode].map((pk) => {
+                {PACKS[cfg.mode].filter((pk) => cfg.mode !== 'football' || cfg.packs.includes(pk.id) || !packsFor(cfg.ratingMode).length || packsFor(cfg.ratingMode).includes(pk.id)).map((pk) => {
                   const on = cfg.packs.includes(pk.id);
                   // Counted alongside every pack so the "official match needs official cards" rule cannot hide guests.
                   const n = buildPool(fullCatalog, { ...cfg, packs: PACKS[cfg.mode].map((x) => x.id), excluded: [] }).filter((c) => c.pack === pk.id).length;
                   const official = cfg.mode === 'football' && cfg.ratingMode !== 'prime';
-                  const note = !official ? pk.note : pk.id === 'modern' ? `Official ${cfg.ratingMode === 'fc27' ? 'FC 27' : 'FC 26'} ratings` : 'Custom ratings — not EA data';
+                  const note = !official ? pk.id === 'modern' ? 'Custom ratings · today’s stars' : pk.note : pk.id === 'modern' ? `Official ${cfg.ratingMode === 'fc27' ? 'FC 27' : 'FC 26'} Gold · EA` : pk.id === 'icons' ? 'Mythic · in-game values via FUT.GG' : 'Custom ratings — not EA data';
                   return (
                     <button key={pk.id} aria-pressed={on} onClick={() => set({ packs: on ? cfg.packs.filter((x) => x !== pk.id) : [...cfg.packs, pk.id] })}
                       className={cx('rounded-xl border p-3 text-left transition', on ? 'border-accent bg-accent/15' : 'border-line bg-white/[0.03] opacity-70 hover:opacity-100')}>
@@ -408,7 +415,7 @@ export function Setup({ initial, initialCustom, roomMode, onCancel, onSubmit }: 
                 {(cfg.mode === 'football' ? LINES : HERO_CLASSES).map((g) => <Chip key={g}>{g} {byGroup[g] || 0}</Chip>)}
               </div>
               <div className="mt-2 flex flex-wrap gap-1.5">
-                {(['mythic', 'legendary', 'epic', 'rare', 'common'] as const).map((r) => <Chip key={r}><span className="h-2 w-2 rounded-full" style={{ background: RARITY_COLOR[r] }} /> {r} {byRarity[r] || 0}</Chip>)}
+                {(cfg.mode === 'football' ? (['mythic', 'legendary', 'epic'] as const) : (['mythic', 'legendary', 'epic', 'rare', 'common'] as const)).map((r) => <Chip key={r}><span className="h-2 w-2 rounded-full" style={{ background: RARITY_COLOR[r] }} /> {RARITY_LABEL[r]} {byRarity[r] || 0}</Chip>)}
               </div>
               <div className="mt-4">
                 <div className="mb-1 flex justify-between text-[11px] text-muted"><span>Minimum pool coverage</span><span className="tnum">{pool.length}/{check.needed}</span></div>
@@ -424,11 +431,11 @@ export function Setup({ initial, initialCustom, roomMode, onCancel, onSubmit }: 
             <dl className="grid gap-x-8 gap-y-2 text-sm sm:grid-cols-2">
               {([
                 ['Mode', cfg.mode === 'football' ? 'Football Auction' : 'Heroes Auction'],
-                ...(cfg.mode === 'football' ? [['Ratings', cfg.ratingMode === 'prime' ? 'Prime Legends / Custom' : `${cfg.ratingMode === 'fc27' ? 'FC 27' : 'FC 26'} Official · ${verifiedCount} verified cards${legendGuests ? ` + ${legendGuests} custom-rated legends` : ''}`]] as [string, string][] : []),
+                ...(cfg.mode === 'football' ? [['Ratings', cfg.ratingMode === 'prime' ? 'Prime Legends / Custom' : `${cfg.ratingMode === 'fc27' ? 'FC 27' : 'FC 26'} · ${goldCount} Gold players${iconCount ? ` + ${iconCount} Icons` : ''}`]] as [string, string][] : []),
                 ['Play', roomMode || online ? 'Online multiplayer room' : 'Local pass-and-play'],
                 ...(roomMode ? [] : [['Participants', online ? `${d.names[0] || '—'} (host) + invited friends` : d.names.slice(0, d.count).map((n, i) => (d.teams[i] ? `${n} (${d.teams[i]})` : n)).join(', ')] as [string, string]]),
                 ['Starting budget', `${formatINR(cfg.budget)} each`],
-                ['Squad', cfg.mode === 'football' ? `${cfg.squadSize} players · ${cfg.formation ?? 'Custom'} · ${LINES.map((l) => `${cfg.slots[l]} ${l}`).join(' / ')}` : `${cfg.squadSize} heroes`],
+                ['Squad', cfg.mode === 'football' ? `${cfg.formation ?? 'Custom'} · ${squadSummary(cfg)}` : `${cfg.squadSize} heroes`],
                 ['Squad rules', cfg.rules === 'strict' ? `Strict${cfg.reserve ? ' + slot reserve' : ''}` : 'Casual'],
                 ['Auction', `${cfg.auctionType === 'mystery' ? 'Mystery' : 'Classic'} · ${cfg.timerSec}s per card · +${cfg.antiSnipeSec}s anti-snipe`],
                 ['Bidding', `Min increment ${formatINR(cfg.increment)} · quick bids +${quickSteps(cfg.budget).map((v) => compactINR(v).slice(1)).join(' / +')}`],
@@ -445,7 +452,7 @@ export function Setup({ initial, initialCustom, roomMode, onCancel, onSubmit }: 
               <ul className="mt-3 space-y-1.5 text-slate-300">
                 {cfg.mode === 'football' ? (
                   <>
-                    <li><b>{Math.round(FOOTBALL_WEIGHTS.quality * 100)}%</b> player quality · <b>{Math.round(FOOTBALL_WEIGHTS.balance * 100)}%</b> positional suitability · <b>{Math.round(FOOTBALL_WEIGHTS.tactics * 100)}%</b> tactical balance · <b>{Math.round(FOOTBALL_WEIGHTS.coverage * 100)}%</b> role coverage · <b>{Math.round(FOOTBALL_WEIGHTS.chemistry * 100)}%</b> chemistry.</li>
+                    <li><b>{+(W.quality * 100).toFixed(1)}%</b> player quality · <b>{+(W.balance * 100).toFixed(1)}%</b> positional suitability · <b>{+(W.tactics * 100).toFixed(1)}%</b> tactical balance · <b>{+(W.coverage * 100).toFixed(1)}%</b> role coverage · <b>{+(W.chemistry * 100).toFixed(1)}%</b> chemistry{W.bench ? <> · <b>{Math.round(W.bench * 100)}%</b> bench depth</> : null} — the first five are judged on the starting {startersOf(cfg)}.</li>
                     <li>Position fit: natural ×1, listed secondary ×0.92, same line ×0.82, secondary line ×0.78, other line ×0.65, goalkeeper mismatch ×0.4. Custom formations use broad line fit.</li>
                     <li>Goalkeepers use their dedicated DIV / HAN / KIC / REF / SPD / POS profile in team evaluation.</li>
                   </>

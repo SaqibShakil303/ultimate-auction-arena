@@ -7,13 +7,15 @@ import type {
 import { HERO_CLASSES, THREATS } from './types';
 import { CAREER_CLUES, describeFootballer, FOOTBALLERS, LINE_NAME, LINE_OF } from './data/football';
 import { FC27_RETRIEVED, FC27_ROWS, type Fc27Row } from './data/fc27';
+import { FC27_ICONS, FC27_ICONS_RETRIEVED, type Fc27IconRow } from './data/fc27Icons';
 import { PORTRAITS, PORTRAITS_RETRIEVED } from './data/portraits';
 import { HEROES } from './data/heroes';
-import { clamp, rarityOf, slug } from './util';
+import { clamp, footballRarity, GOLD_MIN, rarityOf, slug } from './util';
 
 export const PACKS: Record<Mode, { id: string; label: string; note: string }[]> = {
   football: [
-    { id: 'modern', label: 'Current Players', note: 'Today\u2019s stars' },
+    { id: 'modern', label: 'Current Players', note: 'Gold cards \u00b7 75+ overall' },
+    { id: 'icons', label: 'Icons', note: 'Every FC 27 Icon \u00b7 Mythic' },
     { id: 'legends', label: 'Legends', note: 'All-time greats \u00b7 custom ratings' },
   ],
   avengers: [
@@ -29,7 +31,7 @@ function fc27Card(r: Fc27Row): RatedFootballCard {
   const signature = r.playStyles.find((p) => p.endsWith('+')) ?? r.playStyles[0];
   const career = CAREER_CLUES[slug(r.name)];
   return {
-    kind: 'football', id: `fc27-${r.id}`, name: r.name, overall: r.overall, rarity: rarityOf(r.overall), stats: r.stats,
+    kind: 'football', id: `fc27-${r.id}`, name: r.name, overall: r.overall, rarity: footballRarity(r.overall, false), stats: r.stats,
     trait: signature ? `PlayStyle: ${signature}` : d.style,
     line: d.line, pos: r.pos, alt: r.alt, altLines: [...new Set(r.alt.map((a) => LINE_OF[a]).filter((l) => l && l !== d.line))],
     role: d.role, style: d.style, nation: r.nation, club: r.club, era: 'Modern', pack: 'modern',
@@ -42,6 +44,36 @@ function fc27Card(r: Fc27Row): RatedFootballCard {
     ratingMode: 'fc27', edition: 'FC 27', cardType: 'standard', source: r.url,
     verifiedAt: FC27_RETRIEVED, verificationStatus: 'verified', playStyles: r.playStyles,
   };
+}
+
+/**
+ * One FC 27 Icon item becomes a playable Mythic card. Overall, stats and positions are the in-game
+ * Base Icon values as listed by FUT.GG (EA publishes no Icon ratings page); nothing is adjusted.
+ */
+function fc27IconCard(r: Fc27IconRow): RatedFootballCard {
+  const d = describeFootballer(r.pos, r.stats);
+  const career = CAREER_CLUES[slug(r.name)];
+  const decade = `${r.born.slice(0, 3)}0s`;
+  return {
+    kind: 'football', id: `fc27-icon-${r.id}`, name: r.name, overall: r.overall, rarity: footballRarity(r.overall, true), stats: r.stats,
+    trait: 'FC 27 Icon',
+    line: d.line, pos: r.pos, alt: r.alt, altLines: [...new Set(r.alt.map((a) => LINE_OF[a]).filter((l) => l && l !== d.line))],
+    role: d.role, style: d.style, nation: r.nation, club: 'Icons', era: 'Legend', pack: 'icons',
+    strengths: d.strengths, weaknesses: d.weaknesses,
+    clues: [
+      `Icon ${LINE_NAME[d.line].toLowerCase()} (${r.pos}) from ${r.nation}`,
+      career ?? `Born in the ${decade}`,
+      `Playing style: ${d.style}`,
+    ],
+    ratingMode: 'fc27', edition: 'FC 27', cardType: 'icon', source: r.url,
+    verifiedAt: FC27_ICONS_RETRIEVED, verificationStatus: 'verified', playStyles: [],
+  };
+}
+
+/** Tier for a football card after a rating change: Icons and Legends stay Mythic. */
+export function tierOf(card: Card, overall: number) {
+  if (card.kind !== 'football') return rarityOf(overall);
+  return footballRarity(overall, card.era === 'Legend' || (card as RatedFootballCard).cardType === 'icon');
 }
 
 /**
@@ -79,7 +111,11 @@ export function getCatalog(mode: Mode): Card[] {
     playStyles: [],
   }));
   // Official EA SPORTS FC 27 base ratings, generated from the public EA ratings page (see data/fc27.ts).
-  fc27Cache ??= FC27_ROWS.map((r) => withPortrait(fc27Card(r)));
+  // Only Gold cards (75+) are auctioned, plus every men's FC 27 Base Icon (see data/fc27Icons.ts).
+  fc27Cache ??= [
+    ...FC27_ROWS.filter((r) => r.overall >= GOLD_MIN).map((r) => withPortrait(fc27Card(r))),
+    ...FC27_ICONS.map((r) => withPortrait(fc27IconCard(r))),
+  ];
   return [...primeCache, ...fc27Cache];
 }
 
@@ -168,6 +204,7 @@ export function normalizeCard(raw: unknown, mode: Mode): Card | null {
       playStyles: strs(r.playStyles, 20),
       clues: strs(r.clues, 3),
     };
+    card.rarity = tierOf(card, overall);
     if (card.clues.length < 3) card.clues = [`${LINE_NAME[line]} (${card.pos}) from ${nation}`, `Rated ${overall} overall in this game`, `Playing style: ${style}`];
     return card;
   }
@@ -191,7 +228,7 @@ export function applyCustom(catalog: Card[], custom: Custom | undefined, mode: M
     const e = edits[c.id];
     if (!e) return c;
     const overall = num(e.overall, c.overall);
-    const changed = { ...c, overall, rarity: rarityOf(overall), stats: c.stats.map((v, i) => num(e.stats?.[i], v)) };
+    const changed = { ...c, overall, rarity: tierOf(c, overall), stats: c.stats.map((v, i) => num(e.stats?.[i], v)) };
     // A local rating edit invalidates any prior verification claim, while retaining the
     // source as a useful reference for a future re-verification pass.
     return c.kind === 'football'
@@ -207,7 +244,7 @@ export function applyCustom(catalog: Card[], custom: Custom | undefined, mode: M
         const overall = num(e.overall, card.overall);
         if (card.kind === 'football') {
           out.push({
-            ...card, overall, rarity: rarityOf(overall), stats: card.stats.map((v, i) => num(e.stats?.[i], v)),
+            ...card, overall, rarity: tierOf(card, overall), stats: card.stats.map((v, i) => num(e.stats?.[i], v)),
             verificationStatus: card.ratingMode === 'prime' ? 'custom' : 'unverified', verifiedAt: null,
           });
         } else {
